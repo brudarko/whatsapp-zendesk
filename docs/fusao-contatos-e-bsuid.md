@@ -109,3 +109,9 @@ As [regras de tickets](https://support.zendesk.com/hc/en-us/articles/44088824455
 5. Tratar tickets em fluxo separado e correlacionado à tentativa de contato.
 
 Homologar os 43 cenários aplicáveis, com fixtures locais e testes reais limitados a dados descartáveis autorizados. A WABA pendente impede a parte real da validação, não a pesquisa nem o desenvolvimento do pré-check. Nesta rodada a entrega é a investigação; os gaps identificados acima ainda não foram implementados.
+
+## Atualização de implementação após a investigação
+
+O app agora lê identidades secundárias, mostra todos os vínculos messaging na revisão e permite inverter o perfil principal. Notas, detalhes, tags e campos que seriam perdidos exigem aceite separado. Perfis suspensos, equipe, compartilhados e origem com ID externo são bloqueados. Antes da chamada, os perfis e identidades são consultados novamente; revisão alterada é invalidada. Após a chamada, o destino é consultado, sem afirmar merge Sunshine. Cada revisão autoriza no máximo uma chamada; timeout exige conferência externa antes de nova tentativa. Testes e UI local com dados fictícios passaram; não houve mutação real. Estas alterações substituem a descrição inicial do código acima; fusão automática, preservação automática, auditoria durável e reconciliação Sunshine continuam pendentes.
+
+Base primária adicional: [relação entre usuários Support e messaging](https://developer.zendesk.com/documentation/conversations/messaging-platform/users/intro-to-users/) e [API de identidades](https://developer.zendesk.com/api-reference/ticketing/users/user_identities/). Cada identidade messaging fornece um ID Sunshine; não selecionar somente a primeira.

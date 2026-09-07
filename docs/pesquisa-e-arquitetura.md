@@ -134,3 +134,7 @@ Estado observado no sandbox `d3v-brudarko`: sessão administrativa autenticada, 
 Testar no sandbox: texto/mídia em janela aberta; template depois de 24h; primeiro contato com consentimento; resposta e ticket resultante; variáveis e idiomas; template suspenso; falhas 401/403/429 e timeout sem duplicar envios; dois agentes enviando ao mesmo contato; números com/sem 9 e BSUID sem telefone; merge com dados conflitantes; áudio real em navegadores suportados; acesso por grupos; instalação por pessoa sem experiência técnica.
 
 Publicar apenas depois de README de instalação, licença, política de dados/retenção, suporte, ícones definitivos e revisão Marketplace. O manifesto permanece privado para desenvolvimento.
+
+## Atualização de escopo e implementação
+
+Gravação/envio/playback próprios saíram do escopo por decisão do usuário; painel de áudio removido. Recursos nativos anunciados em 2026 devem ser usados. Transcrição local foi discutida, mas não aprovada como implementação. A revisão de contatos agora inclui identidades, prévia de perdas, escolha do destino e revalidação; consultar a atualização em `fusao-contatos-e-bsuid.md`. Descrições anteriores do código inicial são históricas. O serviço de envio/webhooks e merge Sunshine ainda não existem.

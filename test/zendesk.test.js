@@ -2,21 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { zendesk } from "../src/zendesk.js";
 
-test("merge rejects staff and self-merge before any write", async () => {
-  const calls = [];
-  const api = zendesk({
-    request: async (options) => {
-      calls.push(options);
-      return {
-        user: { role: options.url.includes("/12.") ? "agent" : "end-user" },
-      };
-    },
-  });
-  await assert.rejects(api.mergeUser(11, 11), /diferentes/);
-  assert.equal(calls.length, 0);
-  await assert.rejects(api.mergeUser(11, 12), /usuários finais/);
-  assert.ok(calls.every((c) => c.type === "GET"));
-});
 test("inserting template blocks a changed ticket, closed ticket and wrong channel", async () => {
   let values = {
     "ticket.id": 1,

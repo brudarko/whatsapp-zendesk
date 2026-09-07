@@ -110,8 +110,7 @@ section {
   font-weight: 600;
   margin: 12px 0;
 }
-select,
-input[type="file"] {
+select {
   font: inherit;
   color: inherit;
   max-width: 100%;
@@ -217,10 +216,6 @@ details {
 summary {
   cursor: pointer;
   font-weight: 600;
-}
-audio {
-  width: 100%;
-  margin: 12px 0;
 }
 footer {
   display: flex;

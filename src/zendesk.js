@@ -1,6 +1,8 @@
-import { brazilianPhoneCandidates, macroTemplate, safeId } from "./domain.js";
+import { macroTemplate, safeId } from "./domain.js";
+import { contactPhones, mergeReview, contactFingerprint } from "./merge.js";
 
 export function zendesk(client) {
+  const reviews = new WeakMap();
   const request = (url, type = "GET", body) =>
     client.request({
       url,
@@ -23,12 +25,24 @@ export function zendesk(client) {
       url = parsed.pathname + parsed.search;
       seen.add(url);
       const result = await request(url);
-      items.push(...(result[key] ?? []));
+      if (!Array.isArray(result[key]) || (result.meta?.has_more && !result.next_page))
+        throw new Error("Resposta incompleta do Zendesk. Atualize antes de continuar.");
+      items.push(...result[key]);
       url = result.next_page;
     }
     return items;
   }
+  async function contact(id) {
+    const path = `/api/v2/users/${safeId(id)}`;
+    const [{ user }, identities] = await Promise.all([
+      request(`${path}.json`), pages(`${path}/identities.json`, "identities"),
+    ]);
+    if (!user || String(user.id) !== String(id))
+      throw new Error("O Zendesk retornou um perfil diferente do solicitado.");
+    return { user, identities };
+  }
   return {
+    contact,
     request,
     async load(location) {
       const globals = await client.get("currentUser");
@@ -54,11 +68,10 @@ export function zendesk(client) {
     },
     async duplicates(requester, criterion = "phone") {
       if (!requester?.id) return [];
-      const target = (
-        await request(`/api/v2/users/${safeId(requester.id)}.json`)
-      ).user;
+      const targetContact = await contact(requester.id);
+      const target = targetContact.user;
       let queries = [];
-      const variants = brazilianPhoneCandidates(target.phone);
+      const variants = contactPhones(targetContact);
       if (criterion === "phone") queries = variants.map((p) => `phone:${p}`);
       if (criterion === "email" && target.email)
         queries = [`email:"${target.email.replace(/["\\]/g, "")}"`];
@@ -74,22 +87,26 @@ export function zendesk(client) {
           ),
         )
       ).flat();
-      return [
+      const candidates = [
         ...new Map(
           results
             .filter(
               (u) =>
                 u.id !== target.id &&
                 u.role === "end-user" &&
-                !u.suspended &&
-                (criterion !== "phone" ||
-                  brazilianPhoneCandidates(u.phone).some((p) =>
-                    variants.includes(p),
-                  )),
+                !u.suspended,
             )
             .map((u) => [u.id, u]),
         ).values(),
       ];
+      if (criterion !== "phone") return candidates;
+      const matches = [];
+      // Sequential identity reads avoid bursts against the account rate limit.
+      for (const user of candidates) {
+        const full = await contact(user.id);
+        if (contactPhones(full).some((p) => variants.includes(p))) matches.push(full.user);
+      }
+      return matches;
     },
     async insertTemplate(template, expectedTicketId) {
       const current = await client.get([
@@ -145,19 +162,42 @@ export function zendesk(client) {
         },
       });
     },
-    async mergeUser(sourceId, targetId) {
+    async previewMerge(sourceId, targetId) {
       if (String(sourceId) === String(targetId))
         throw new Error("Escolha dois perfis diferentes.");
-      const users = await Promise.all(
-        [sourceId, targetId].map((id) =>
-          request(`/api/v2/users/${safeId(id)}.json`),
-        ),
-      );
-      if (users.some(({ user }) => user.role !== "end-user" || user.suspended))
-        throw new Error("Só é possível fundir usuários finais ativos.");
-      return request(`/api/v2/users/${safeId(sourceId)}/merge`, "PUT", {
-        user: { id: Number(safeId(targetId)) },
-      });
+      const [source, target] = await Promise.all([contact(sourceId), contact(targetId)]);
+      const review = mergeReview(source, target);
+      reviews.set(review, [contactFingerprint(source), contactFingerprint(target)]);
+      return review;
+    },
+    async mergeUser(review, acknowledgedLosses = false) {
+      const expected = reviews.get(review);
+      if (!expected) throw new Error("Abra uma nova revisão antes de fundir.");
+      if (review.blockers.length) throw new Error(review.blockers.join(" "));
+      if (review.losses.length && !acknowledgedLosses)
+        throw new Error("Revise e confirme a perda dos dados listados.");
+      const sourceId = review.source.user.id, targetId = review.target.user.id;
+      const current = await Promise.all([contact(sourceId), contact(targetId)]);
+      if (current.some((c, i) => contactFingerprint(c) !== expected[i])) {
+        reviews.delete(review);
+        throw new Error("Os perfis ou identidades mudaram. Abra uma nova revisão.");
+      }
+      if (!reviews.has(review)) throw new Error("Esta revisão já foi utilizada.");
+      reviews.delete(review); // Never blindly repeat an irreversible request after a timeout.
+      try {
+        await request(`/api/v2/users/${safeId(sourceId)}/merge`, "PUT", {
+          user: { id: Number(safeId(targetId)) },
+        });
+      } catch {
+        throw new Error("A fusão não foi confirmada. Confira os dois perfis no Zendesk antes de tentar novamente.");
+      }
+      try {
+        const survivor = await contact(targetId);
+        const messaging = survivor.identities.filter((i) => i.type === "messaging").map((i) => i.value);
+        return { survivor, messaging, verified: true };
+      } catch {
+        return { verified: false };
+      }
     },
   };
 }

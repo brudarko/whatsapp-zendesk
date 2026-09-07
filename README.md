@@ -26,23 +26,25 @@ Não coloque credenciais no repositório. A implementação atual usa apenas a s
 
 ## Implementado
 
+- [Aba Destinatário e teste sem WABA](docs/bsuid-e-teste-interface.md): dados Support reais e simulações explícitas de BSUID sem telefone, confirmação pendente e conflitos. Resolver e consulta Sunshine por comando local; integração autenticada na interface e envio ainda pendentes.
+
 - Interface pt-BR com componentes oficiais Zendesk Garden na lateral, editor e navegação.
 - Leitura de macros ativas com prefixo `WhatsApp::`, busca e filtro por grupo.
 - Cadastro administrativo de **macros de templates já aprovados**, com texto, variáveis estáticas e cabeçalho de texto/imagem/documento. O cadastro não submete nada à Meta.
 - Inserção de template no editor, com conferência de ticket, status e canal. O agente revisa e envia pelo Zendesk. Macros com variáveis Zendesk devem ser aplicadas pelo menu nativo para resolver essas variáveis.
 - Estimativa da janela de 24h a partir do histórico WhatsApp do usuário final. Não usa comentários de e-mail ou do agente para reabrir a janela.
-- Busca de candidatos por telefone, e-mail ou nome; fusão assistida de um usuário final no solicitante atual. Exige revisão explícita na interface e é irreversível.
-- Prévia local de áudio. Reprodução do áudio recebido é responsabilidade do player nativo Zendesk.
+- Busca de candidatos por telefone (incluindo identidades secundárias), e-mail ou nome. Revisão de fusão Support com escolha do perfil principal, vínculos messaging e prévia de perda de notas, detalhes, tags e campos. Exige confirmação explícita; relê os perfis antes da operação e consulta o destino depois. Não executa merge Sunshine.
+- Áudio usa os recursos nativos Zendesk; o painel próprio foi removido. Transcrição não implementada.
 
 ## Ainda pendente
 
-Primeiro contato via Notifications API, criação/sincronização de templates Meta, formatos avançados, gravação e envio de áudio, confirmação de identidades via webhook/BSUID, fusão automática de perfis e tickets, onboarding completo WABA e publicação no Marketplace. Não existe backend, fila de entregas ou persistência de identidades nesta versão. Não usar em produção como solução completa.
+Primeiro contato via Notifications API, criação/sincronização de templates Meta, formatos avançados, histórico de envios e recibos de entrega/leitura, confirmação de identidades via webhook/BSUID, fusão automática de perfis e tickets, onboarding completo WABA e publicação no Marketplace. Não existe backend, fila de entregas ou persistência de identidades nesta versão. Não usar em produção como solução completa.
 
-Leia a [pesquisa e arquitetura](docs/pesquisa-e-arquitetura.md), que registra fontes, restrições e o restante do trabalho, e a [investigação de fusão de contatos e BSUID](docs/fusao-contatos-e-bsuid.md). A fusão inicial ainda não possui prévia de perda de campos/notas/tags nem reconciliação de identidades; não está pronta para operação automática. O manifesto continua privado para desenvolvimento; a publicação gratuita ainda não foi realizada.
+Leia a [pesquisa e arquitetura](docs/pesquisa-e-arquitetura.md), que registra fontes, restrições e o restante do trabalho, e a [investigação de fusão de contatos e BSUID](docs/fusao-contatos-e-bsuid.md). A fusão agora mostra perdas e vínculos de identidades, mas ainda não reconcilia usuários Sunshine nem automatiza preservação de dados. Não está pronta para operação automática. O manifesto continua privado para desenvolvimento; a publicação gratuita ainda não foi realizada.
 
 ## Dados e custos
 
-Nenhum dado de clientes é armazenado em servidor próprio nesta versão. O código consulta o Zendesk e só altera macros/perfis quando o usuário executa essas ações no app. A prévia de áudio usa um objeto local no navegador e não faz upload. Não há analytics ou servidor de licenciamento.
+Nenhum dado de clientes é armazenado em servidor próprio nesta versão. O código consulta o Zendesk e só altera macros/perfis quando o usuário executa essas ações no app. Não há analytics ou servidor de licenciamento.
 
 O app não cobra licença. Zendesk, Meta e eventual hospedagem têm custos e requisitos próprios.
 
@@ -53,3 +55,7 @@ Build e seis testes locais passaram. Interface carregada na lateral e no popover
 A lista de canais do sandbox continha apenas um Web Widget ativo. A homologação de WhatsApp depende de conectar uma WABA e número de testes.
 
 `zcli apps:validate` exige autenticação da CLI e ainda não foi concluído. Auditoria de dependências de produção: zero vulnerabilidades reportadas na execução; dependências de desenvolvimento do ZCLI têm alertas que devem ser revisados antes de distribuir o ambiente de desenvolvimento.
+
+## Revisão de contatos
+
+Testes locais adicionais cobrem perdas, identidades secundárias, perfis inelegíveis, mudança durante a revisão e timeout sem repetição. A interface foi verificada com dados fictícios e mutações desabilitadas: seleção, perdas, duas confirmações e inversão do destino. Não houve merge real. Limite de tickets e demais regras de elegibilidade continuam sujeitos à API Zendesk; ID externo na origem é bloqueado conservadoramente até validar SSO. A releitura reduz conflitos, mas não cria uma transação atômica com a API remota.

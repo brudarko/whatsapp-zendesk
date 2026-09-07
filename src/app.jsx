@@ -5,6 +5,7 @@ import { Button } from "@zendeskgarden/react-buttons";
 import { Field, Label, Input, Textarea } from "@zendeskgarden/react-forms";
 import { windowFromConversation, shorthand } from "./domain.js";
 import { zendesk } from "./zendesk.js";
+import { IdentityPanel } from "./IdentityPanel.jsx";
 import "./style.css";
 
 const client = window.ZAFClient?.init(),
@@ -150,7 +151,7 @@ function App() {
           {[
             ["templates", "Templates"],
             ["contacts", "Contatos"],
-            ["audio", "Áudio"],
+            ["identity", "Destinatário"],
             ["setup", "Configurar"],
           ].map(([id, label]) => (
             <Button
@@ -217,7 +218,7 @@ function App() {
                 refresh={refresh}
               />
             )}
-            {view === "audio" && <AudioPanel />}
+            {view === "identity" && <IdentityPanel requesterId={data.ticket?.requester?.id} api={api} />}
             {view === "setup" && (
               <section>
                 <h2>Conecte seu atendimento</h2>
@@ -264,7 +265,7 @@ function App() {
                   <summary>Próxima etapa de integração</summary>
                   <p>
                     Primeiro contato via Notifications API, criação de templates
-                    na Meta, formatos avançados, gravação e envio de áudio,
+                    na Meta, formatos avançados, acompanhamento dos envios,
                     fusão automática de perfis e tickets. Exigem integração de
                     conversas, webhooks e validação no ambiente de testes.
                   </p>
@@ -534,184 +535,73 @@ function TemplateForm({ groups, busy, submit }) {
 function Contacts({ data, run, busy, notice, refresh }) {
   const [criterion, setCriterion] = useState("phone"),
     [matches, setMatches] = useState(null),
-    [source, setSource] = useState(null),
-    [confirmed, setConfirmed] = useState(false);
+    [review, setReview] = useState(null),
+    [confirmed, setConfirmed] = useState(false),
+    [lossesAccepted, setLossesAccepted] = useState(false);
   const requester = data.ticket?.requester;
-  if (!requester?.id)
-    return (
-      <div className="empty">
-        <h2>Abra um ticket</h2>
-        <p>
-          A busca compara o solicitante com outros usuários finais do Zendesk.
-        </p>
-      </div>
-    );
-  return (
-    <section>
-      <h2>Uma pessoa, um histórico</h2>
-      <p>
-        Variações do nono dígito são candidatas à revisão. Telefones fixos e
-        BSUID são preservados.
-      </p>
-      <label className="select-label">
-        Buscar possíveis duplicados por
-        <select
-          value={criterion}
-          onChange={(e) => {
-            setCriterion(e.target.value);
-            setMatches(null);
-            setSource(null);
-            setConfirmed(false);
-          }}
-        >
-          <option value="phone">Telefone brasileiro</option>
-          <option value="email">E-mail</option>
-          <option value="name">Nome</option>
-        </select>
-      </label>
-      <Button
-        disabled={busy}
-        onClick={() =>
-          run(async () => {
-            setSource(null);
-            setConfirmed(false);
-            setMatches(await api.duplicates(requester, criterion));
-          })
-        }
-      >
-        Buscar contatos
-      </Button>
-      {matches?.length === 0 && (
-        <Notice>
-          Nenhum candidato encontrado. Isso não garante ausência de duplicados.
-        </Notice>
-      )}
-      {matches?.map((user) => (
-        <div className="card" key={user.id}>
-          <strong>
-            {user.name} · #{user.id}
-          </strong>
-          <p>
-            {user.phone || "Sem telefone"}
-            <br />
-            {user.email || "Sem e-mail"}
-          </p>
-          <Button
-            size="small"
-            disabled={busy}
-            onClick={() => {
-              setSource(user);
-              setConfirmed(false);
-            }}
-          >
-            Revisar fusão
-          </Button>
-        </div>
-      ))}
-      {source && (
-        <div className="card">
-          <h3>Conferir antes de fundir</h3>
-          <p>
-            <strong>
-              {source.name} (#{source.id})
-            </strong>{" "}
-            será incorporado a{" "}
-            <strong>
-              {requester.name} (#{requester.id})
-            </strong>
-            . O solicitante atual será mantido. A operação é irreversível.
-          </p>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.target.checked)}
-            />
-            Confirmei que os perfis pertencem à mesma pessoa e o destino está
-            correto.
-          </label>
-          <Button
-            isDanger
-            disabled={!confirmed || busy}
-            onClick={() =>
-              run(async () => {
-                const current = await client.get("ticket.requester.id");
-                if (current["ticket.requester.id"] !== requester.id)
-                  throw new Error(
-                    "O solicitante mudou. Atualize antes de fundir.",
-                  );
-                await api.mergeUser(source.id, requester.id);
-                setSource(null);
-                setMatches(null);
-                setConfirmed(false);
-                notice("Perfis fundidos pelo Zendesk.");
-                await refresh();
-              })
-            }
-          >
-            Fundir perfis
-          </Button>
-        </div>
-      )}
-    </section>
-  );
+  const resetReview = () => { setReview(null); setConfirmed(false); setLossesAccepted(false); };
+  async function preview(sourceId, targetId) {
+    resetReview();
+    setReview(await api.previewMerge(sourceId, targetId));
+  }
+  if (!requester?.id) return <div className="empty"><h2>Abra um ticket</h2>
+    <p>A busca compara o solicitante com outros usuários finais do Zendesk.</p></div>;
+  return <section>
+    <h2>Uma pessoa, um histórico</h2>
+    <p>Telefone, e-mail e nome localizam candidatos. Confira a identidade antes de fundir.</p>
+    <label className="select-label">Buscar possíveis duplicados por
+      <select value={criterion} disabled={busy} onChange={(e) => {
+        setCriterion(e.target.value); setMatches(null); resetReview();
+      }}>
+        <option value="phone">Telefone brasileiro</option><option value="email">E-mail</option><option value="name">Nome</option>
+      </select>
+    </label>
+    <Button disabled={busy} onClick={() => run(async () => {
+      resetReview(); setMatches(await api.duplicates(requester, criterion));
+    })}>Buscar contatos</Button>
+    {matches?.length === 0 && <Notice>Nenhum candidato encontrado. Isso não garante ausência de duplicados.</Notice>}
+    {matches?.map((user) => <div className="card" key={user.id}>
+      <strong>{user.name} · #{user.id}</strong><p>{user.phone || "Sem telefone"}<br />{user.email || "Sem e-mail"}</p>
+      <Button size="small" disabled={busy} onClick={() => run(() => preview(user.id, requester.id))}>Revisar fusão</Button>
+    </div>)}
+    {review && <div className="card">
+      <h3>Conferir antes de fundir</h3>
+      <p>O perfil <strong>#{review.source.user.id}</strong> será incorporado a <strong>#{review.target.user.id}</strong>. A operação é irreversível.</p>
+      <Button size="small" disabled={busy} onClick={() => run(() => preview(review.target.user.id, review.source.user.id))}>Inverter perfil principal</Button>
+      {[['Perfil que será descartado', review.source], ['Perfil principal', review.target]].map(([title, profile]) =>
+        <div key={title} className="card"><h3>{title}</h3>
+          <p>{profile.user.name} · #{profile.user.id}<br />{profile.user.email || "Sem e-mail"}<br />{profile.user.phone || "Sem telefone"}</p>
+          <p>Organização: {profile.user.organization_id || "Sem organização"}<br />ID externo: {profile.user.external_id || "Ausente"}</p>
+          <details><summary>Identidades do perfil ({profile.identities.length})</summary>
+            <ul>{profile.identities.map((i) => <li key={i.id}>{i.type}: <code>{i.value}</code>{i.primary ? " · principal" : ""}</li>)}</ul>
+          </details>
+        </div>)}
+      <Notice>Esta ação funde perfis do Support. Os IDs de messaging são vínculos com o Sunshine; não comprovam fusão dos usuários Sunshine. Nome, idioma e fuso do perfil principal serão mantidos. Organizações e acesso aos tickets precisam ser revisados.</Notice>
+      {review.blockers.map((reason) => <Notice danger key={reason}>{reason}</Notice>)}
+      {review.losses.length > 0 && <>
+        <h3>Dados da origem que não serão preservados</h3>
+        {review.losses.map((loss) => <details key={loss.field}><summary>{loss.field}</summary>
+          <p>Origem:</p><pre>{JSON.stringify(loss.source, null, 2)}</pre>
+          <p>Valor mantido no destino:</p><pre>{JSON.stringify(loss.target, null, 2)}</pre>
+        </details>)}
+        <p>Para preservar esses valores, ajuste o perfil principal no Zendesk e abra outra revisão antes de fundir.</p>
+        <label className="check"><input type="checkbox" disabled={busy} checked={lossesAccepted} onChange={(e) => setLossesAccepted(e.target.checked)} />Aceito descartar os valores listados acima.</label>
+      </>}
+      <label className="check"><input type="checkbox" disabled={busy} checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmei que os perfis são da mesma pessoa e que o perfil principal está correto.</label>
+      <Button isDanger disabled={busy || !confirmed || review.blockers.length > 0 || (review.losses.length > 0 && !lossesAccepted)} onClick={() => run(async () => {
+        const current = await client.get("ticket.requester.id");
+        if (current["ticket.requester.id"] !== requester.id) throw new Error("O solicitante mudou. Atualize antes de fundir.");
+        const selected = review;
+        resetReview();
+        const result = await api.mergeUser(selected, lossesAccepted);
+        setMatches(null);
+        notice(result.verified
+          ? `Fusão Support concluída. Perfil principal #${result.survivor.user.id}; ${result.messaging.length} vínculo(s) messaging encontrado(s). Fusão Sunshine não verificada.`
+          : "Zendesk aceitou a fusão, mas a consulta do perfil principal falhou. Confira o resultado antes de continuar.");
+        await refresh();
+      })}>Fundir perfis do Support</Button>
+    </div>}
+  </section>;
 }
 
-function AudioPanel() {
-  const [audio, setAudio] = useState(null),
-    [error, setError] = useState("");
-  useEffect(
-    () => () => {
-      if (audio) URL.revokeObjectURL(audio.url);
-    },
-    [audio],
-  );
-  return (
-    <section>
-      <h2>Áudio no atendimento</h2>
-      <p>
-        O Zendesk já reproduz áudios na conversa. Use o player nativo para ouvir
-        o cliente.
-      </p>
-      <div className="card">
-        <h3>Prévia de um áudio</h3>
-        <p>
-          Confira o arquivo antes de anexá-lo pelo editor nativo. Esta prévia
-          não envia mensagens.
-        </p>
-        <label className="select-label">
-          Arquivo de áudio
-          <input
-            type="file"
-            accept="audio/*"
-            onChange={(e) => {
-              setError("");
-              const file = e.target.files?.[0];
-              if (!file) return;
-              if (
-                !file.type.startsWith("audio/") ||
-                file.size > 16 * 1024 * 1024
-              ) {
-                setError("Escolha um áudio de até 16 MB para prévia.");
-                return;
-              }
-              setAudio({ url: URL.createObjectURL(file), name: file.name });
-            }}
-          />
-        </label>
-        {error && <Notice danger>{error}</Notice>}
-        {audio && (
-          <>
-            <p>{audio.name}</p>
-            <audio controls src={audio.url} aria-label="Prévia do áudio" />
-          </>
-        )}
-      </div>
-      <Notice>
-        Gravação e envio integrado ainda dependem do transporte de mídia. Áudio
-        não substitui um template fora da janela de 24 horas.
-      </Notice>
-    </section>
-  );
-}
 createRoot(document.getElementById("root")).render(<App />);
