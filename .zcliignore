@@ -1,0 +1,10 @@
+node_modules/**
+src/**
+test/**
+docs/**
+scripts/**
+package.json
+package-lock.json
+README.md
+LICENSE
+tmp/**

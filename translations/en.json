@@ -1,0 +1,8 @@
+{
+  "app": {
+    "name": "WhatsApp for Zendesk",
+    "short_description": "Templates and Brazilian contact review in the agent workspace.",
+    "long_description": "Open source app under development. Organize existing approved templates by group, insert them into the editor, and review potential duplicate contacts. Advanced capabilities still require Sunshine Conversations and Meta integration.",
+    "installation_instructions": "Install in a test account and connect WhatsApp using Zendesk's official setup wizard. Read the README before merging users."
+  }
+}

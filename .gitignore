@@ -1,0 +1,6 @@
+node_modules/
+tmp/
+.env*
+!.env.example
+assets/app.js
+assets/app.css
