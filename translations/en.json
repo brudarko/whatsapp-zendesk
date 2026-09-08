@@ -3,6 +3,16 @@
     "name": "WhatsApp for Zendesk",
     "short_description": "Templates and Brazilian contact review in the agent workspace.",
     "long_description": "Open source app under development. Organize existing approved templates by group, insert them into the editor, and review potential duplicate contacts. Advanced capabilities still require Sunshine Conversations and Meta integration.",
-    "installation_instructions": "Install in a test account and connect WhatsApp using Zendesk's official setup wizard. Read the README before merging users."
+    "installation_instructions": "Install in a test account and connect WhatsApp using Zendesk's official setup wizard. Read the README before merging users.",
+    "parameters": {
+      "outbound_service_host": {
+        "label": "Servidor de envio (domínio HTTPS)",
+        "helpText": "Opcional. Sem esta conexão, o histórico e a fusão continuam disponíveis."
+      },
+      "outbound_service_token": {
+        "label": "Credencial do serviço de envio",
+        "helpText": "Credencial privada do serviço hospedado pela sua equipe. Não é o token da API Zendesk."
+      }
+    }
   }
 }

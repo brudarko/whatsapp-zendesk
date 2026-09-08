@@ -1,0 +1,26 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Conectar WhatsApp ao app</title>
+<style>body{font:15px system-ui;color:#2f3941;background:#f8f9f9;margin:0}main{max-width:580px;margin:32px auto;padding:28px;background:white;border:1px solid #d8dcde;border-radius:8px}h1{font-size:24px}label{display:block;margin:16px 0}input,select,button{font:inherit;box-sizing:border-box;width:100%;padding:10px;border:1px solid #87929d;border-radius:4px}button{background:#17494d;color:white;cursor:pointer}button:disabled{opacity:.5;cursor:wait}p{line-height:1.5}small{color:#68737d}[hidden]{display:none}#status{white-space:pre-wrap}</style>
+<main><small>WHATSAPP PARA ZENDESK · CONFIGURAÇÃO LOCAL</small><h1>Conecte seu número</h1>
+<p>Use o WhatsApp já conectado ao Zendesk. Este assistente consulta a conexão; não envia mensagens.</p>
+<form id="credentials"><h2>1. Conectar Sunshine</h2>
+<label>Subdomínio Zendesk<input name="subdomain" required value="d3v-brudarko" pattern="[a-z0-9-]+" autocomplete="off"></label>
+<label>App ID<input name="appId" required maxlength="24" autocomplete="off"></label>
+<label>Key ID<input name="keyId" required autocomplete="off"></label>
+<label>Secret<input name="secret" type="password" required autocomplete="off"></label>
+<button>Verificar conexão e buscar números</button></form>
+<form id="selection" hidden><h2>2. Escolher número</h2>
+<label>Número conectado<select name="integrationId" required></select></label>
+<label>ID do portfólio empresarial Meta<input name="portfolioId" required inputmode="numeric" pattern="[1-9][0-9]*"></label>
+<p>A API não confirma aqui o portfólio proprietário. Informe o ID em Configurações do negócio → Informações do negócio na Meta. Não use o ID da conta WhatsApp (WABA).</p>
+<button>Salvar conexão neste computador</button></form>
+<p id="status" role="status" aria-live="polite"></p><p><small>As credenciais são enviadas apenas ao serviço local e ao Zendesk da conta informada. Ao salvar, ficam em um arquivo privado fora do repositório. O OAuth do Support e a hospedagem HTTPS são etapas separadas ainda pendentes.</small></p></main>
+<script>
+const token=location.hash.slice(1);history.replaceState(null,'',location.pathname);
+const status=document.querySelector('#status'), credentials=document.querySelector('#credentials'), selection=document.querySelector('#selection');
+async function post(path,body){const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw Error(result.error||'Falha na conexão');return result;}
+for(const form of [credentials,selection])form.addEventListener('submit',async event=>{event.preventDefault();const input=Object.fromEntries(new FormData(form));document.querySelectorAll('button').forEach(b=>b.disabled=true);status.textContent='Verificando…';try{
+if(form===credentials){selection.hidden=true;const result=await post('/discover',input);credentials.elements.secret.value='';const select=selection.elements.integrationId;select.replaceChildren();for(const i of result.integrations){const option=document.createElement('option');option.value=i.id;option.textContent=i.name+' · '+i.phone;select.append(option);}selection.hidden=!result.integrations.length;status.textContent=result.integrations.length?'Credenciais válidas. Escolha o número e confirme o portfólio.':'Conexão válida, mas nenhum canal WhatsApp foi encontrado.';}
+else{const result=await post('/save',input);selection.hidden=true;status.textContent=result.message;}
+}catch(e){status.textContent=e.message;}finally{document.querySelectorAll('button').forEach(b=>b.disabled=false);}});
+if(!token){status.textContent='Abra o link completo exibido ao executar npm run setup:local.';document.querySelectorAll('button').forEach(b=>b.disabled=true);}
+</script></html>

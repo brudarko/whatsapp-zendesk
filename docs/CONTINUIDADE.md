@@ -4,6 +4,12 @@ Este arquivo resume decisões desta conversa para continuar em outra conta ou ta
 
 ## Projeto e estado verificado
 
+Atualização mais recente: criação e listagem de templates passaram a usar a API WhatsApp Message Templates v1.1 do Sunshine. A tela não exige mais OAuth Meta. Testes locais: 36 passaram; build concluído; GET real pelo serviço local retornou HTTP 200 com lista vazia. Nenhum template real criado. `zcli apps:validate` bloqueado por autenticação do CLI. O OAuth Meta experimental permanece no código, fora do fluxo de templates. Consulte `customers-e-envio.md` para o estado atual.
+
+Menu superior implementado em seguida: `top_bar` com ícone WhatsApp, busca por telefone/nome e criação de customer ao confirmar envio. O serviço aceita primeiro contato por telefone brasileiro sem vínculo messaging; mantém resolução Sunshine/BSUID para vinculados e não ignora conflitos. 28 testes locais passaram; painel de busca carregou no navegador com dados fictícios. Reiniciar ZCLI/recarregar Zendesk para ler a nova localização do manifesto. Sem envio real nesta validação.
+
+Atualização de 08/09/2026: implementados localmente painel `user_sidebar` em Customers, histórico WhatsApp entre tickets do perfil, fusão manual no perfil e fluxo de registro privado antes do envio via serviço Sunshine opcional. Também há fusão automática Support conservadora ao abrir tickets elegíveis e ícone WhatsApp. Consulte `customers-e-envio.md` para configuração e limites. 26 testes e build locais; teste visual com dados fictícios, sem disparo ou fusão reais. Credenciais/hospedagem do serviço, recibos e OAuth Marketplace pendentes. As informações de commit e escopo abaixo descrevem a etapa inicial; confira `git status` e `git log` antes de retomar.
+
 - Pasta: `/Users/bruno.santos/Desktop/Zendesk/zendesk-whatsapp`.
 - Remoto privado: https://github.com/brudarko/whatsapp-zendesk.
 - Branch `main`, último commit confirmado nesta revisão: `21d0e63`.

@@ -39,3 +39,30 @@ export function contactFingerprint(contact) {
     ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v;
   return JSON.stringify(stable({ user: contact.user, identities }));
 }
+
+// Automatic merges require provider-verified identity; phone aliases only discover candidates.
+export function automaticMergeReason(review) {
+  if (review.blockers.length || review.losses.length)
+    return "Há restrições ou dados que exigem revisão manual.";
+  const { source, target } = review;
+  const verified = (c, type) => c.identities.filter(i => i.type === type &&
+    i.verified === true && typeof i.value === "string" && i.value.trim())
+    .map(i => type === "phone_number" ? i.value.replace(/[^0-9]/g, "") : i.value.trim().toLowerCase()).filter(Boolean);
+  const shared = (a, b) => a.some(v => b.includes(v));
+  const messaging = c => c.identities.filter(i => i.type === "messaging" && i.value).map(i => i.value);
+  const a = messaging(source), b = messaging(target);
+  if (a.length && b.length && (a.some(v => !b.includes(v)) || b.some(v => !a.includes(v))))
+    return "Os perfis têm vínculos Sunshine diferentes. Revise a reconciliação manualmente.";
+  if (!shared(verified(source, "email"), verified(target, "email")) &&
+      !shared(verified(source, "phone_number"), verified(target, "phone_number")) &&
+      !shared(a, b))
+    return "Identidade não comprovada: nome e variações do nono dígito apenas sugerem duplicidade.";
+  for (const key of ["organization_id", "locale", "time_zone", "restricted_agent", "ticket_restriction", "only_private_comments", "moderator"])
+    if (JSON.stringify(source.user[key] ?? null) !== JSON.stringify(target.user[key] ?? null))
+      return "Organização, preferências ou permissões diferentes exigem revisão manual.";
+  // Do not silently combine conflicting verified contact identities.
+  for (const type of ["email", "phone_number"])
+    if (verified(source, type).some(v => !verified(target, type).includes(v)))
+      return "Existem identidades verificadas diferentes. Revise os perfis.";
+  return "";
+}

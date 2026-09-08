@@ -98,3 +98,53 @@ test("phone search uses secondary identities of source and candidates", async ()
   assert.deepEqual((await api.duplicates({ id: 11 })).map((u) => u.id), [12]);
   assert.ok(urls.some((u) => decodeURIComponent(u).includes("phone:+5511987654321")));
 });
+
+function automaticFixture({ phones = ["+5511987654321", "+5511987654321"], verified = true, count = 1, channel = "whatsapp", notes = "" } = {}) {
+  const writes = [], claims = [];
+  const profiles = Object.fromEntries([11, 12, 13].map((id, i) => [id, {
+    user: { id, role: "end-user", phone: phones[i % 2], name: "Bruno", notes: id === 12 ? notes : "", tags: [], user_fields: {} },
+    identities: [{ id, type: "phone_number", value: phones[i % 2], verified }],
+  }]));
+  const api = zendesk({ request: async options => {
+    const { url, type } = options;
+    if (url.includes("/tickets/")) return { ticket: { id: 3, requester_id: 12, status: "open", via: { channel } } };
+    if (url.includes("/search")) return { users: [profiles[11].user, ...(count > 1 ? [profiles[13].user] : [])] };
+    const id = Number(url.match(/users\/(\d+)/)[1]);
+    if (type !== "GET") { writes.push(options); return {}; }
+    return structuredClone(url.includes("identities") ? { identities: profiles[id].identities } : { user: profiles[id].user });
+  }});
+  const guard = { claim: async pair => { if (claims.includes(pair)) throw new Error("tentativa anterior"); claims.push(pair); } };
+  return { api, guard, writes, claims, profiles };
+}
+
+test("opening WhatsApp ticket merges one proven candidate once with stable survivor", async () => {
+  const f = automaticFixture();
+  assert.equal((await f.api.autoMergeOnOpen(3, f.guard)).merged, true);
+  assert.equal(f.writes.length, 1);
+  assert.equal(f.writes[0].url, "/api/v2/users/12/merge");
+  assert.equal(JSON.parse(f.writes[0].data).user.id, 11);
+  await assert.rejects(f.api.autoMergeOnOpen(3, f.guard), /tentativa anterior/);
+  assert.equal(f.writes.length, 1);
+});
+
+test("automatic merge refuses aliases alone, unverified contacts, ambiguity, losses and other channels", async () => {
+  for (const options of [
+    { phones: ["+5511987654321", "+551187654321"] },
+    { verified: false }, { count: 2 }, { notes: "preservar" }, { channel: "email" },
+  ]) {
+    const f = automaticFixture(options);
+    assert.ok((await f.api.autoMergeOnOpen(3, f.guard)).message);
+    assert.equal(f.writes.length, 0);
+    assert.equal(f.claims.length, 0);
+  }
+});
+
+test("automatic merge refuses distinct Sunshine users and missing repetition protection", async () => {
+  const f = automaticFixture();
+  for (const id of [11, 12]) f.profiles[id].identities.push({ type: "messaging", value: `sunshine-${id}` });
+  assert.match((await f.api.autoMergeOnOpen(3, f.guard)).message, /Sunshine diferentes/);
+  assert.equal(f.writes.length, 0);
+  const g = automaticFixture();
+  await assert.rejects(g.api.autoMergeOnOpen(3), /Proteção/);
+  assert.equal(g.writes.length, 0);
+});

@@ -29,7 +29,7 @@ export function IdentityPanel({ requesterId, api }) {
     <p>O contato pode usar WhatsApp sem disponibilizar o telefone. O ID de messaging aponta para o Sunshine; ele não é o BSUID.</p>
     <label className="select-label">Visualização
       <select value={scenario} onChange={(e) => setScenario(e.target.value)}>
-        <option value="real">Dados do ticket atual</option>
+        <option value="real">Dados do contato atual</option>
         <option value="bsuid">Simular BSUID sem telefone</option>
         <option value="pending">Simular confirmação pendente</option>
         <option value="ambiguous">Simular destinos divergentes</option>
@@ -39,7 +39,7 @@ export function IdentityPanel({ requesterId, api }) {
     </label>
     {scenario === "real" ? <>
       {error && <p role="alert">{error}</p>}
-      {!requesterId && <p>Abra um ticket para consultar o contato. Os exemplos acima funcionam sem WABA.</p>}
+      {!requesterId && <p>Abra um ticket ou perfil em Customers para consultar o contato. Os exemplos acima funcionam sem WABA.</p>}
       {requesterId && !contact && !error && <p role="status">Consultando identidades…</p>}
       {contact && <div className="card">
         <h3>{contact.user.name || "Contato"}</h3><p>{contact.user.phone || "Telefone não disponibilizado"}</p>
@@ -58,6 +58,6 @@ export function IdentityPanel({ requesterId, api }) {
         </> : <p role="status">{identity.reason}</p>}
       </div>
     </>}
-    <p>Envio indisponível nesta versão. Sem destinatário confirmado, nenhuma regra do nono dígito ou nome parecido libera o envio.</p>
+    <p>O envio pelo perfil exige conexão do serviço e destinatário confirmado. Nome parecido ou variações do nono dígito não liberam o envio.</p>
   </section>;
 }

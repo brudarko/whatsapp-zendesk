@@ -3,6 +3,7 @@ src/**
 test/**
 docs/**
 scripts/**
+server/**
 package.json
 package-lock.json
 README.md

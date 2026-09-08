@@ -6,6 +6,9 @@ import { Field, Label, Input, Textarea } from "@zendeskgarden/react-forms";
 import { windowFromConversation, shorthand } from "./domain.js";
 import { zendesk } from "./zendesk.js";
 import { IdentityPanel } from "./IdentityPanel.jsx";
+import { CustomerMessages, LocalConnection } from "./CustomerMessages.jsx";
+import { MetaTemplates } from "./MetaTemplates.jsx";
+import { TopBarMessages } from "./TopBarMessages.jsx";
 import "./style.css";
 
 const client = window.ZAFClient?.init(),
@@ -51,13 +54,51 @@ function App() {
     [connected, setConnected] = useState(false),
     [loading, setLoading] = useState(true),
     [now, setNow] = useState(Date.now());
+  const [autoMessage, setAutoMessage] = useState(""), [autoBusy, setAutoBusy] = useState(false);
+  const autoChecked = useRef(new Set()), autoTicket = useRef("");
   const operation = useRef(false),
     version = useRef(0);
   const win = windowFromConversation(data.conversation, now);
   async function refresh(loc = location) {
     const id = ++version.current;
     const values = await api.load(loc);
-    if (id === version.current) setData(values);
+    if (id !== version.current) return;
+    setData(values);
+    autoTicket.current = `${values.ticket?.id}:${values.ticket?.requester?.id}`;
+    if (loc !== "ticket_sidebar" || !values.ticket?.id || operation.current) return;
+    const key = `${values.ticket.id}:${values.ticket.requester?.id}`;
+    if (autoChecked.current.has(key)) return;
+    autoChecked.current.add(key);
+    operation.current = true;
+    setAutoBusy(true);
+    setAutoMessage("Verificando contatos duplicados…");
+    try {
+      const context = await client.context();
+      const account = context.account?.subdomain;
+      if (!account || !navigator.locks?.request)
+        throw new Error("Fusão automática indisponível: não foi possível proteger a operação contra repetição.");
+      // ponytail: browser-local lock; separate computers still depend on Zendesk's merge validation.
+      const result = await navigator.locks.request(`wa-merge:${account}`, async () => {
+        const current = await client.get(["ticket.id", "ticket.requester.id"]);
+        if (current["ticket.id"] !== values.ticket.id || current["ticket.requester.id"] !== values.ticket.requester?.id)
+          throw new Error("O solicitante mudou. Reabra o ticket para verificar os contatos.");
+        return api.autoMergeOnOpen(values.ticket.id, { claim: async pair => {
+          const latest = await client.get(["ticket.id", "ticket.requester.id"]);
+          if (latest["ticket.id"] !== values.ticket.id || latest["ticket.requester.id"] !== values.ticket.requester?.id)
+            throw new Error("O ticket mudou. Nenhum contato foi fundido.");
+          const storageKey = `wa-merge-attempt:${account}:${pair}`;
+          if (localStorage.getItem(storageKey))
+            throw new Error("Já existe uma tentativa de fusão para esses perfis neste navegador. Confira o resultado na revisão manual.");
+          localStorage.setItem(storageKey, new Date().toISOString());
+        }});
+      });
+      if (autoTicket.current === key) setAutoMessage(result.message);
+    } catch (e) {
+      if (autoTicket.current === key) setAutoMessage(e.message || "Não foi possível verificar os duplicados. Use a aba Contatos.");
+    } finally {
+      operation.current = false;
+      setAutoBusy(false);
+    }
   }
   async function run(action) {
     if (operation.current) return;
@@ -93,10 +134,11 @@ function App() {
         if (!alive) return;
         setLocation(context.location);
         setConnected(true);
-        if (context.location === "nav_bar") setView("setup");
+        if (context.location === "nav_bar") setView("templates");
+        if (["user_sidebar", "top_bar"].includes(context.location)) setView("messages");
         await client.invoke("resize", {
-          width: context.location === "ticket_editor" ? "500px" : "100%",
-          height: context.location === "ticket_editor" ? "320px" : "640px",
+          width: context.location === "top_bar" ? "400px" : context.location === "ticket_editor" ? "500px" : "100%",
+          height: context.location === "top_bar" ? "420px" : context.location === "ticket_editor" ? "320px" : "640px",
         });
         await refresh(context.location);
         if (alive) setError("");
@@ -118,7 +160,7 @@ function App() {
     const changed = () => {
       refresh().catch((e) => setError(e.message || "Falha ao atualizar."));
     };
-    const events = [
+    const events = ["top_bar", "nav_bar"].includes(location) ? ["pane.activated"] : location === "user_sidebar" ? ["app.activated", "user.name.changed", "user.email.changed"] : [
       "ticket.requester.id.changed",
       "ticket.assignee.group.id.changed",
       "ticket.conversation.changed",
@@ -132,12 +174,7 @@ function App() {
   }, [connected, location]);
   return (
     <ThemeProvider>
-      <main className={location === "ticket_editor" ? "editor" : ""}>
-        <header>
-          <span className="eyebrow">WHATSAPP PARA ZENDESK</span>
-          <h1>Continue a conversa</h1>
-          <span className="badge">Em desenvolvimento</span>
-        </header>
+      <main className={location === "top_bar" ? "top-bar" : location === "ticket_editor" ? "editor" : ""}>
         {data.ticket && (
           <div className="customer">
             <strong>{data.ticket.requester?.name || "Solicitante"}</strong>
@@ -147,12 +184,13 @@ function App() {
             </span>
           </div>
         )}
-        <nav aria-label="Áreas do aplicativo">
+        {data.customer && <div className="customer"><strong>{data.customer.name}</strong><span>Perfil #{data.customer.id} · {data.customer.phone || "Telefone não disponibilizado"}</span></div>}
+        {location !== "top_bar" && <nav aria-label="Áreas do aplicativo">
           {[
+            ...(["user_sidebar", "top_bar"].includes(location) ? [["messages", "Mensagens"]] : []),
             ["templates", "Templates"],
             ["contacts", "Contatos"],
-            ["identity", "Destinatário"],
-            ["setup", "Configurar"],
+            ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["meta", "Criar templates"], ["setup", "Configurar"]] : []),
           ].map(([id, label]) => (
             <Button
               key={id}
@@ -169,16 +207,20 @@ function App() {
               {label}
             </Button>
           ))}
-        </nav>
+        </nav>}
         {error && <Notice danger>{error}</Notice>}
         {notice && <Notice>{notice}</Notice>}
+        {location === "ticket_sidebar" && autoMessage && <details><summary>Verificação de contatos</summary><p>{autoMessage}</p></details>}
         {loading ? (
           <p role="status">Conectando ao Zendesk…</p>
         ) : (
           <>
+            {view === "meta" && location === "nav_bar" && data.currentUser?.role === "admin" && <MetaTemplates api={api} busy={busy} run={run} />}
+            {view === "messages" && data.customer && <CustomerMessages key={data.customer.id} customer={data.customer} data={data} api={api} location={location} busy={busy} run={run} notice={setNotice} />}
+            {view === "messages" && location === "top_bar" && <TopBarMessages data={data} api={api} busy={busy} run={run} notice={setNotice} />}
             {view === "templates" && (
               <>
-                <section className={`window ${win.state}`}>
+                {data.ticket && <section className={`window ${win.state}`}>
                   <strong>
                     {win.state === "open"
                       ? `Janela aberta · ${Math.ceil(win.remaining / 60000)} min restantes`
@@ -197,10 +239,10 @@ function App() {
                       {new Date(win.expiresAt).toLocaleString("pt-BR")}
                     </small>
                   )}
-                </section>
+                </section>}
                 <Templates
                   data={data}
-                  busy={busy}
+                  busy={busy || autoBusy}
                   connected={connected}
                   run={run}
                   notice={setNotice}
@@ -210,18 +252,22 @@ function App() {
             )}
             {view === "contacts" && (
               <Contacts
-                key={data.ticket?.requester?.id}
+                key={data.customer?.id ?? data.ticket?.requester?.id}
                 data={data}
+                location={location}
                 run={run}
-                busy={busy}
+                busy={busy || autoBusy}
                 notice={setNotice}
                 refresh={refresh}
               />
             )}
-            {view === "identity" && <IdentityPanel requesterId={data.ticket?.requester?.id} api={api} />}
+            {view === "identity" && <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />}
             {view === "setup" && (
               <section>
                 <h2>Conecte seu atendimento</h2>
+                <LocalConnection api={api} busy={busy} run={run} />
+                <details><summary>Configuração técnica e diagnóstico</summary>
+                <p>Para testar a conexão Sunshine neste computador, execute <code>npm run setup:local</code> e abra o link privado mostrado no terminal. O assistente valida a chave e lista os números conectados. O envio só fica disponível após configurar também o acesso Support e o serviço HTTPS.</p>
                 <p>
                   Use o número WhatsApp já conectado ao Zendesk. Não é
                   necessário desconectá-lo para usar este app.
@@ -266,7 +312,7 @@ function App() {
                   <p>
                     Primeiro contato via Notifications API, criação de templates
                     na Meta, formatos avançados, acompanhamento dos envios,
-                    fusão automática de perfis e tickets. Exigem integração de
+                    reconciliação Sunshine e fusão de tickets. Exigem integração de
                     conversas, webhooks e validação no ambiente de testes.
                   </p>
                 </details>
@@ -274,21 +320,22 @@ function App() {
                   O app será gratuito. Plano Zendesk, tarifas da Meta e eventual
                   hospedagem continuam sujeitos aos respectivos provedores.
                 </p>
+                <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />
+                </details>
               </section>
             )}
           </>
         )}
-        <footer>
-          <span>Open source · Sem licença paga do app</span>
+        {location !== "top_bar" && <footer>
           <Button
             size="small"
             isBasic
-            disabled={!connected || busy}
+            disabled={!connected || busy || autoBusy}
             onClick={() => run(() => refresh())}
           >
             Atualizar
           </Button>
-        </footer>
+        </footer>}
       </main>
     </ThemeProvider>
   );
@@ -312,7 +359,7 @@ function Templates({ data, busy, connected, run, notice, refresh }) {
         <h2>Seus templates</h2>
         {data.currentUser?.role === "admin" && (
           <Button size="small" onClick={() => setCreate(!create)}>
-            {create ? "Fechar cadastro" : "Cadastrar"}
+            {create ? "Fechar" : "Adicionar aprovado"}
           </Button>
         )}
       </div>
@@ -372,10 +419,9 @@ function Templates({ data, busy, connected, run, notice, refresh }) {
           <h3>{selected.label}</h3>
           <pre>{selected.text}</pre>
           <p>
-            Confira a aprovação no WhatsApp Manager. Depois de inserir, revise e
-            envie pelo editor.
+            {data.customer ? "Confira a aprovação no WhatsApp Manager. Para enviar a este contato, abra a aba Mensagens." : "Confira a aprovação no WhatsApp Manager. Depois de inserir, revise e envie pelo editor."}
           </p>
-          <Button
+          {!data.customer && <Button
             isPrimary
             isStretched
             disabled={busy || !connected || !data.ticket?.id}
@@ -389,7 +435,7 @@ function Templates({ data, busy, connected, run, notice, refresh }) {
             }
           >
             Inserir no editor
-          </Button>
+          </Button>}
         </div>
       )}
     </section>
@@ -532,13 +578,13 @@ function TemplateForm({ groups, busy, submit }) {
   );
 }
 
-function Contacts({ data, run, busy, notice, refresh }) {
+function Contacts({ data, location, run, busy, notice, refresh }) {
   const [criterion, setCriterion] = useState("phone"),
     [matches, setMatches] = useState(null),
     [review, setReview] = useState(null),
     [confirmed, setConfirmed] = useState(false),
     [lossesAccepted, setLossesAccepted] = useState(false);
-  const requester = data.ticket?.requester;
+  const requester = data.customer ?? data.ticket?.requester;
   const resetReview = () => { setReview(null); setConfirmed(false); setLossesAccepted(false); };
   async function preview(sourceId, targetId) {
     resetReview();
@@ -589,8 +635,7 @@ function Contacts({ data, run, busy, notice, refresh }) {
       </>}
       <label className="check"><input type="checkbox" disabled={busy} checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmei que os perfis são da mesma pessoa e que o perfil principal está correto.</label>
       <Button isDanger disabled={busy || !confirmed || review.blockers.length > 0 || (review.losses.length > 0 && !lossesAccepted)} onClick={() => run(async () => {
-        const current = await client.get("ticket.requester.id");
-        if (current["ticket.requester.id"] !== requester.id) throw new Error("O solicitante mudou. Atualize antes de fundir.");
+        await api.assertContactContext(requester.id, location);
         const selected = review;
         resetReview();
         const result = await api.mergeUser(selected, lossesAccepted);
@@ -598,7 +643,9 @@ function Contacts({ data, run, busy, notice, refresh }) {
         notice(result.verified
           ? `Fusão Support concluída. Perfil principal #${result.survivor.user.id}; ${result.messaging.length} vínculo(s) messaging encontrado(s). Fusão Sunshine não verificada.`
           : "Zendesk aceitou a fusão, mas a consulta do perfil principal falhou. Confira o resultado antes de continuar.");
-        await refresh();
+        if (location === "user_sidebar" && String(selected.source.user.id) === String(requester.id)) {
+          await client.invoke("routeTo", "user", selected.target.user.id);
+        } else await refresh();
       })}>Fundir perfis do Support</Button>
     </div>}
   </section>;

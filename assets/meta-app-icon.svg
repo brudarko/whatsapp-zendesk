@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>WhatsApp Active Messages — conversa e envio</title>
+  <rect width="1024" height="1024" fill="#03363D"/>
+  <path d="M268 236h394c70 0 126 56 126 126v190c0 70-56 126-126 126H421L256 788V666c-66-6-116-60-116-126V362c0-70 57-126 128-126Z" fill="#FFFFFF"/>
+  <rect x="252" y="364" width="298" height="40" rx="20" fill="#03363D"/>
+  <rect x="252" y="456" width="206" height="40" rx="20" fill="#03363D"/>
+  <circle cx="730" cy="666" r="158" fill="#03363D"/>
+  <circle cx="730" cy="666" r="130" fill="#25D366"/>
+  <path d="M666 666h128m-54-54 54 54-54 54" fill="none" stroke="#03363D" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -236,6 +236,39 @@ footer {
 .editor {
   padding: 12px;
 }
+.top-bar {
+  padding: 16px;
+}
+.message-preview {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #edf8f4;
+  border: 1px solid #aecfc2;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+.select-label input, .select-label textarea {
+  font: inherit;
+  color: inherit;
+  padding: 8px 10px;
+  border: 1px solid #87929d;
+  border-radius: 4px;
+  width: 100%;
+}
+.top-bar section {
+  margin: 0;
+}
+.top-bar section section {
+  margin-top: 12px;
+}
+.top-bar .select-label input {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #87929d;
+  border-radius: 4px;
+  width: 100%;
+}
 .editor header,
 .editor .customer,
 .editor nav,

@@ -4,17 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start:local": "node server/index.mjs --local",
+    "setup:oauth": "node server/oauth.mjs",
+    "setup:local": "node server/setup.mjs",
     "inspect:identity": "node scripts/inspect-identity.mjs",
     "build": "esbuild src/app.jsx --bundle --minify --outfile=assets/app.js --define:process.env.NODE_ENV=\"\\\"production\\\"\"",
     "test": "node --test test/*.test.js",
     "dev": "npm run build && zcli apps:server",
     "validate": "npm run build && zcli apps:validate .",
-    "package": "npm run validate && zcli apps:package ."
+    "package": "npm run validate && zcli apps:package .",
+    "start:outbound": "node server/index.mjs"
   },
   "dependencies": {
     "@zendeskgarden/react-buttons": "^9.15.8",
     "@zendeskgarden/react-forms": "^9.15.8",
     "@zendeskgarden/react-theming": "^9.15.8",
+    "libphonenumber-js": "^1.13.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "styled-components": "^6.5.3"
