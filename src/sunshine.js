@@ -5,6 +5,20 @@
 // 401 em /sc/v2, então a chave da Conversations API é obrigatória.
 const HEX24 = /^[a-f0-9]{24}$/i;
 
+// Diagnóstico por campo: "credencial ausente" sem dizer qual campo está errado
+// obriga o administrador a adivinhar. O secret não aparece aqui porque configuração
+// protegida não é devolvida ao app — sua ausência só se manifesta como 401 na chamada.
+export function sunshineIssues(settings = {}) {
+  const appId = String(settings.sunshine_app_id ?? "").trim();
+  const keyId = String(settings.sunshine_key_id ?? "").trim();
+  const issues = [];
+  if (!appId) issues.push("App ID não preenchido.");
+  else if (!HEX24.test(appId)) issues.push(`App ID com formato inesperado (${appId.length} caracteres; esperado 24 hexadecimais).`);
+  if (!keyId) issues.push("Key ID não preenchido.");
+  else if (!/^app_[a-f0-9]{24}$/i.test(keyId)) issues.push(`Key ID com formato inesperado (${keyId.slice(0, 4)}…, ${keyId.length} caracteres; esperado app_ e 24 hexadecimais).`);
+  return issues;
+}
+
 export function sunshineConfig(settings = {}) {
   const appId = String(settings.sunshine_app_id ?? "").trim();
   const keyId = String(settings.sunshine_key_id ?? "").trim();

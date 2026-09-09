@@ -41,11 +41,13 @@ function TextField({ label, value, onChange, multiline, ...props }) {
 // informada na instalação) e o serviço de envio (opcional, para disparo validado).
 function ServiceStatus({ api }) {
   const [channel, setChannel] = useState(undefined), [service, setService] = useState(undefined);
+  const [issues, setIssues] = useState([]);
   useEffect(() => {
     let alive = true;
     api.sunshineScope()
       .then(value => { if (alive) setChannel(value ? { integrationId: value.scope.integrationId } : null); })
       .catch(e => { if (alive) setChannel({ error: e.message }); });
+    api.sunshineSettingsIssues().then(list => { if (alive) setIssues(list); }).catch(() => {});
     api.outboundConfig().then(value => { if (alive) setService(value); }).catch(() => { if (alive) setService(null); });
     return () => { alive = false; };
   }, [api]);
@@ -59,6 +61,7 @@ function ServiceStatus({ api }) {
       : <Notice>
           <strong>Credencial da Conversations API ausente</strong>
           <p>Preencha App ID, Key ID e Secret nas configurações do app, em Admin Center · Apps e integrações. A chave é criada em APIs · Conversations API.</p>
+          {!!issues.length && <ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
         </Notice>}
     {service === undefined ? null
       : service?.host ? <Notice type="success"><strong>Serviço de envio conectado</strong><p>{service.host}</p></Notice>
@@ -250,16 +253,15 @@ function App() {
                 refresh={refresh}
               />
             )}
-            {view === "identity" && <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />}
             {view === "setup" && (
               <section>
                 <h2>Conecte seu atendimento</h2>
                 <ServiceStatus api={api} />
                 <LocalConnection api={api} busy={busy} run={run} />
-                <Disclosure title="Diagnóstico">
+                {(typeof LOCAL_SERVICE === "undefined" ? true : LOCAL_SERVICE) && <Disclosure title="Diagnóstico">
                   <p>{connected ? "Zendesk conectado." : "Aguardando conexão com o Zendesk."}</p>
                   <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />
-                </Disclosure>
+                </Disclosure>}
               </section>
             )}
           </>

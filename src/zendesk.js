@@ -2,7 +2,7 @@ import { RECORD_PREFIX, parseTemplate, sendRecord, destinationPhone } from "./ou
 import { macroTemplate, catalogMacro, safeId, brazilianPhoneCandidates } from "./domain.js";
 import { contactPhones, mergeReview, contactFingerprint, automaticMergeReason } from "./merge.js";
 import { isLocalApp, localRequest } from "./localConnection.js";
-import { sunshineConfig, sunshineRequest, whatsappIntegration } from "./sunshine.js";
+import { sunshineConfig, sunshineIssues, sunshineRequest, whatsappIntegration } from "./sunshine.js";
 import { sunshineWindow } from "./sunshineWindow.js";
 import { readReceipt } from "./readReceipt.js";
 import { whatsappTemplates } from "./sunshineTemplates.js";
@@ -115,10 +115,19 @@ export function zendesk(client) {
     async sunshine() {
       const { settings = {} } = await client.metadata();
       const config = sunshineConfig(settings);
-      if (!config) return null;
+      if (!config) {
+        const issues = sunshineIssues(settings);
+        // Nenhum campo preenchido é o caso normal antes de configurar; formato errado precisa aparecer.
+        if (issues.some(issue => !issue.includes("não preenchido"))) throw new Error(issues.join(" "));
+        return null;
+      }
       const context = await client.context();
       const request = sunshineRequest(client, config, context.account?.subdomain);
       return { config, request };
+    },
+    async sunshineSettingsIssues() {
+      const { settings = {} } = await client.metadata();
+      return sunshineIssues(settings);
     },
     async sunshineScope() {
       const access = await api.sunshine();
