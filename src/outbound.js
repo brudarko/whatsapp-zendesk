@@ -9,6 +9,28 @@ export function formatPhoneInput(value, country = "BR") {
   return { country, value: new AsYouType(country).input(text) };
 }
 
+// Exibição: agrupa o que já veio, nunca inventa DDI nem nono dígito. Números
+// brasileiros de 8 dígitos ainda existem na base e o libphonenumber os trata como
+// inválidos, então o agrupamento do DDD é feito aqui em vez de perder a leitura.
+export function formatPhone(value, country = "BR") {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const digits = text.replace(/\D/g, "");
+  const brazilian = digits.startsWith("55")
+    ? digits.slice(2)
+    : country === "BR" && !text.startsWith("+") ? digits : "";
+  if ([10, 11].includes(brazilian.length)) {
+    const local = brazilian.slice(2);
+    return `+55 (${brazilian.slice(0, 2)}) ${local.slice(0, local.length - 4)}-${local.slice(-4)}`;
+  }
+  return parsePhoneNumberFromString(text, { defaultCountry: country, extract: false })?.formatInternational() ?? text;
+}
+
+export function looksLikePhone(value) {
+  const text = String(value ?? "").trim();
+  return /^[+(0-9][0-9\s().-]*$/.test(text) && text.replace(/\D/g, "").length >= 3;
+}
+
 export function destinationPhone(value, country = "BR") {
   const text = String(value ?? "").trim().replace(/^00/, "+");
   if (!/^[+\d\s().-]+$/.test(text)) throw new Error("Informe um telefone válido com DDI e código de área.");

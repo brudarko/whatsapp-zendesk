@@ -1,10 +1,34 @@
 {
   "app": {
-    "name": "WhatsApp for Zendesk",
+    "name": "WhatsApp Management",
     "short_description": "Templates and Brazilian contact review in the agent workspace.",
     "long_description": "Open source app under development. Organize existing approved templates by group, insert them into the editor, and review potential duplicate contacts. Advanced capabilities still require Sunshine Conversations and Meta integration.",
     "installation_instructions": "Install in a test account and connect WhatsApp using Zendesk's official setup wizard. Read the README before merging users.",
     "parameters": {
+      "sunshine_app_id": {
+        "label": "Conversations API app ID",
+        "helpText": "Admin Center · Apps and integrations · APIs · Conversations API. Create a key and copy the app ID."
+      },
+      "sunshine_key_id": {
+        "label": "Conversations API key ID",
+        "helpText": "Starts with app_. Comes with the app ID."
+      },
+      "sunshine_secret": {
+        "label": "Conversations API secret key",
+        "helpText": "Zendesk shows the secret once. It is stored as a secure setting and is never read by the browser."
+      },
+      "whatsapp_integration_id": {
+        "label": "WhatsApp integration ID (optional)",
+        "helpText": "Leave empty when the account has a single number. With more than one, the app lists the available IDs so you can pick."
+      },
+      "meta_portfolio_id": {
+        "label": "Meta business portfolio ID (optional)",
+        "helpText": "Only needed to message contacts identified by BSUID, without a phone number. Not the WABA ID."
+      },
+      "auto_merge_contacts": {
+        "label": "Merge duplicate contacts automatically",
+        "helpText": "Off by default. When on, opening a WhatsApp ticket merges a single proven duplicate without asking. Merging Support profiles cannot be undone."
+      },
       "outbound_service_host": {
         "label": "Servidor de envio (domínio HTTPS)",
         "helpText": "Opcional. Sem esta conexão, o histórico e a fusão continuam disponíveis."

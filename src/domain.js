@@ -28,6 +28,12 @@ export function brazilianPhoneCandidates(value) {
   return variants;
 }
 
+export function windowDuration(milliseconds) {
+  const minutes = Math.max(0, Math.ceil(milliseconds / 60000));
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h${minutes % 60 ? ` ${minutes % 60}min` : ""}`;
+}
+
 export function windowFromConversation(messages, now = Date.now()) {
   const timestamps = messages
     .filter(
@@ -97,6 +103,7 @@ export function macroTemplate(macro) {
     ...macro,
     text: action.value,
     label: macro.title.slice("WhatsApp::".length),
+    useCase: typeof macro.description === "string" ? macro.description : "",
     groupIds: macro.restriction?.ids ?? [],
   };
 }
@@ -105,4 +112,25 @@ export function safeId(id) {
   if (!/^\d+$/.test(String(id)) || Number(id) <= 0)
     throw new Error("Identificador inválido.");
   return String(id);
+}
+
+// Catálogo visto pelo administrador: inclui macros inativas, que ficam fora do
+// envio (macroTemplate as descarta) enquanto a Meta não aprova o template.
+export function catalogMacro(macro) {
+  if (typeof macro?.title !== "string" || !macro.title.startsWith("WhatsApp::")) return null;
+  const text = macro.actions?.find((a) => a.field === "comment_value")?.value ?? "";
+  return {
+    id: macro.id,
+    label: macro.title.slice("WhatsApp::".length),
+    useCase: typeof macro.description === "string" ? macro.description : "",
+    groupIds: macro.restriction?.ids ?? [],
+    active: macro.active === true,
+    template: /template=\[\[([^\]]+)\]\]/.exec(text)?.[1] ?? "",
+    language: /language=\[\[([^\]]+)\]\]/.exec(text)?.[1] ?? "",
+  };
+}
+
+export function catalogMatch(entries, item) {
+  if (!item?.name) return null;
+  return (entries ?? []).find((e) => e.template === item.name && e.language === item.language) ?? null;
 }

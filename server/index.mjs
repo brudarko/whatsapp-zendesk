@@ -6,12 +6,17 @@ import { join, resolve } from "node:path";
 import { zendesk } from "../src/zendesk.js";
 import { sendRecordedTicket } from "./outbound.mjs";
 import { configPath } from "./setup.mjs";
-import { whatsappTemplates } from "./templates.mjs";
+import { whatsappTemplates } from "../src/sunshineTemplates.js";
+import { metaTemplate } from "../src/metaTemplate.js";
+import { requiresMeta } from "../src/templateTypes.js";
+import { templateMetaAccess, metaRequest, uploadTemplateSample, providerError } from "./templateMeta.mjs";
+import { sunshineWindow } from "../src/sunshineWindow.js";
+import { readReceipt } from "../src/readReceipt.js";
 import { metaOAuth } from "./metaOAuth.mjs";
 
 const localMode = process.argv.includes("--local");
 if (localMode) {
-  process.env.OUTBOUND_SERVICE_TOKEN = randomBytes(32).toString("hex");
+  process.env.OUTBOUND_SERVICE_TOKEN ||= randomBytes(32).toString("hex");
   process.env.OUTBOUND_DATA_DIR ||= join(homedir(), ".zendesk-whatsapp", "outbound");
 }
 
@@ -33,7 +38,10 @@ const base = `https://${process.env.ZENDESK_SUBDOMAIN}.zendesk.com`;
 async function request(path, auth, method = "GET", body) {
   const response = await fetch(base + path, { method, redirect: "error", signal: AbortSignal.timeout(20000),
     headers: { Authorization: auth, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
-  if (!response.ok) throw new Error(`API recusou a operação (HTTP ${response.status}).`);
+  if (!response.ok) {
+    const errorBody=await response.json().catch(()=>null);
+    throw providerError(response.status,errorBody,[auth,...Object.entries(process.env).filter(([key])=>/TOKEN|SECRET/.test(key)).map(([,value])=>value)]);
+  }
   return response.json();
 }
 const api = zendesk({ request: o => request(o.url, `Bearer ${process.env.ZENDESK_OAUTH_TOKEN}`, o.type, o.data ? JSON.parse(o.data) : undefined) });
@@ -103,18 +111,57 @@ createServer(async (req, res) => {
       return reply(405,{error:"Método inválido."});
     }catch(e){return reply(400,{error:e.message});}
   }
-  if (localMode && req.url === "/templates" && ["GET", "POST"].includes(req.method)) {
+  if (localMode && ["/templates","/templates/capabilities","/templates/media"].includes(req.url) && ["GET", "POST"].includes(req.method)) {
     try {
       const { user } = await api.request("/api/v2/users/me.json");
       if (user?.role !== "admin" || user.suspended) return reply(403, { error: "Autorize o serviço com um administrador." });
+      if(req.url === "/templates/capabilities" && req.method === "GET") {
+        const advanced=await templateMetaAccess(process.env,scope,sunshine);
+        return reply(200,{advanced,media:advanced&&/^\d+$/.test(process.env.META_APP_ID||"")});
+      }
+      if(req.url === "/templates/media" && req.method === "POST") {
+        if(!await templateMetaAccess(process.env,scope,sunshine))return reply(409,{error:"Conecte o gerenciamento avançado da mesma conta WhatsApp para enviar arquivos de exemplo."});
+        let raw="";for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>23*1024**2)throw Error("Arquivo muito grande.");}
+        return reply(200,await uploadTemplateSample(process.env,JSON.parse(raw)));
+      }
+      if(req.url !== "/templates")return reply(405,{error:"Método inválido."});
       let payload;
       if (req.method === "POST") {
-        let raw="";for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>16384)throw new Error("Template muito grande.");}
+        let raw="";for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>100000)throw new Error("Template muito grande.");}
         payload=JSON.parse(raw);
         if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("Template inválido.");
       }
+      if(payload && requiresMeta(payload)) {
+        const template=metaTemplate(payload);
+        if(!await templateMetaAccess(process.env,scope,sunshine))return reply(409,{error:"Este formato precisa de acesso de gerenciamento avançado à mesma conta WhatsApp. O cadastro pelo Sunshine continua disponível para texto e botões básicos."});
+        const result=await metaRequest(process.env,`${process.env.META_WABA_ID}/message_templates`,template);
+        if(!result.id)throw Error("Criação não confirmada. Confira a lista antes de tentar novamente.");
+        return reply(200,{...template,...result});
+      }
       return reply(200,await whatsappTemplates(sunshine,scope,payload));
     }catch(e){return reply(409,{error:e.message});}
+  }
+  if (localMode && req.method === "POST" && req.url === "/window") {
+    try {
+      let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 1024) throw Error("Pedido inválido."); }
+      const {ticketId} = JSON.parse(raw);
+      if (!/^[1-9]\d*$/.test(String(ticketId))) throw Error("Ticket inválido.");
+      const {ticket} = await api.request(`/api/v2/tickets/${ticketId}.json`);
+      return reply(200, await sunshineWindow(await api.contact(ticket.requester_id), scope, sunshine));
+    } catch { return reply(409, {error:"Não foi possível consultar a janela no Sunshine."}); }
+  }
+  if (localMode && req.method === "POST" && req.url === "/read") {
+    try {
+      let raw = ""; for await (const chunk of req) { raw += chunk; if (raw.length > 1024) throw Error("Pedido inválido."); }
+      const {ticketId} = JSON.parse(raw);
+      if (!/^[1-9]\d*$/.test(String(ticketId))) throw Error("Ticket inválido.");
+      const {ticket} = await api.request(`/api/v2/tickets/${ticketId}.json`);
+      if (!ticket?.tags?.includes("whatsapp_active_message")) throw Error("Ticket sem registro de envio.");
+      const page = await api.request(`/api/v2/tickets/${ticketId}/comments.json?sort_order=asc`);
+      const record = page.comments?.[0];
+      if (record?.public !== false || !record.created_at) throw Error("Registro de envio ausente.");
+      return reply(200, await readReceipt(await api.contact(ticket.requester_id), scope, sunshine, record.created_at));
+    } catch { return reply(409, {error:"Não foi possível consultar a leitura no Sunshine."}); }
   }
   if (localMode && req.method === "GET" && req.url === "/health") return reply(200, { subdomain: process.env.ZENDESK_SUBDOMAIN });
   if (req.method !== "POST" || req.url !== "/send") return reply(404, { error: "Rota inexistente." });

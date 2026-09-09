@@ -4,6 +4,12 @@ test/**
 docs/**
 scripts/**
 server/**
+garden-mcp/**
+.github/**
+.token-optimizer/**
+.claude/**
+.cursor/**
+.env*
 package.json
 package-lock.json
 README.md

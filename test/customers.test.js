@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { zendesk } from "../src/zendesk.js";
 import { shorthand } from "../src/domain.js";
-import { RECORD_PREFIX, parseTemplate, destinationPhone, formatPhoneInput } from "../src/outbound.js";
+import { RECORD_PREFIX, parseTemplate, destinationPhone, formatPhoneInput, formatPhone, looksLikePhone } from "../src/outbound.js";
 
 test("DDI formatting preserves Brazilian aliases and supports international search", async () => {
   assert.equal(formatPhoneInput("11987654321").value, "(11) 98765-4321");
@@ -176,4 +176,18 @@ test("first contact uses the recorded exact phone; changed phones and linked con
       assert.equal(f.results.length, 0);
     }
   }
+});
+
+test("recipient display groups Brazilian numbers without inventing digits", () => {
+  // Número legado de 8 dígitos: o libphonenumber o considera inválido e não agrupa.
+  assert.equal(formatPhone("554999465530"), "+55 (49) 9946-5530");
+  assert.equal(formatPhone("+5511987654321"), "+55 (11) 98765-4321");
+  assert.equal(formatPhone("11987654321"), "+55 (11) 98765-4321");
+  assert.equal(formatPhone("+14155552671"), "+1 415 555 2671");
+  // Sem número reconhecível nada é inventado nem escondido.
+  assert.equal(formatPhone("contato sem numero"), "contato sem numero");
+  assert.equal(formatPhone(null), "");
+  // A busca única decide o critério pelo que foi digitado.
+  for (const value of ["+55 49", "(11) 98765-4321", "4999465530"]) assert.equal(looksLikePhone(value), true);
+  for (const value of ["Bruno", "Bruno 2", "", "1"]) assert.equal(looksLikePhone(value), false);
 });

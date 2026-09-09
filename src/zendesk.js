@@ -1,7 +1,12 @@
 import { RECORD_PREFIX, parseTemplate, sendRecord, destinationPhone } from "./outbound.js";
-import { macroTemplate, safeId, brazilianPhoneCandidates } from "./domain.js";
+import { macroTemplate, catalogMacro, safeId, brazilianPhoneCandidates } from "./domain.js";
 import { contactPhones, mergeReview, contactFingerprint, automaticMergeReason } from "./merge.js";
 import { isLocalApp, localRequest } from "./localConnection.js";
+import { sunshineConfig, sunshineRequest, whatsappIntegration } from "./sunshine.js";
+import { sunshineWindow } from "./sunshineWindow.js";
+import { readReceipt } from "./readReceipt.js";
+import { whatsappTemplates } from "./sunshineTemplates.js";
+
 
 export function zendesk(client) {
   const reviews = new WeakMap();
@@ -48,6 +53,11 @@ export function zendesk(client) {
     contact,
     request,
     openTicket: id => client.invoke("routeTo", "ticket", Number(safeId(id))),
+    // Fusão automática é irreversível: só roda se o administrador ligou a configuração.
+    async autoMergeEnabled() {
+      const { settings = {} } = await client.metadata();
+      return settings.auto_merge_contacts === true;
+    },
     async load(location) {
       const globals = await client.get("currentUser");
       const currentUser = globals.currentUser;
@@ -84,7 +94,9 @@ export function zendesk(client) {
       if (String(current[key]) !== String(expectedId)) throw new Error("O contato mudou. Atualize o app antes de continuar.");
     },
     async outboundConfig() {
-      if (isLocalApp()) {
+      // A expressão do define fica no próprio if: é assim que o esbuild remove o
+      // trecho do pacote de produção em vez de guardá-lo atrás de uma variável.
+      if ((typeof LOCAL_SERVICE === "undefined" ? true : LOCAL_SERVICE) && isLocalApp()) {
         const token = sessionStorage.getItem("whatsapp-local-token");
         if (token) {
           const health = await localRequest("/health", token);
@@ -98,12 +110,64 @@ export function zendesk(client) {
       return typeof host === "string" && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(host)
         ? { host } : null;
     },
-    async metaTemplates(input) {
+    // Credencial da instalação: o proxy do Zendesk assina a chamada ao Sunshine e o
+    // segredo não passa pelo browser. Sem as settings, cai no serviço local (dev).
+    async sunshine() {
+      const { settings = {} } = await client.metadata();
+      const config = sunshineConfig(settings);
+      if (!config) return null;
+      const context = await client.context();
+      const request = sunshineRequest(client, config, context.account?.subdomain);
+      return { config, request };
+    },
+    async sunshineScope() {
+      const access = await api.sunshine();
+      if (!access) return null;
+      const integrationId = await whatsappIntegration(access.request, access.config);
+      return { ...access, scope: { appId: access.config.appId, integrationId, portfolioId: access.config.portfolioId } };
+    },
+    // Só leitura: o Sunshine não informa entrega sem webhook. Ver src/readReceipt.js.
+    async readReceipt(ticketId) {
+      const id = safeId(ticketId);
+      const access = await api.sunshineScope();
+      if (access) {
+        const { ticket } = await request(`/api/v2/tickets/${id}.json`);
+        if (!ticket?.tags?.includes("whatsapp_active_message")) throw new Error("Ticket sem registro de envio.");
+        const page = await request(`/api/v2/tickets/${id}/comments.json?sort_order=asc`);
+        const record = page.comments?.[0];
+        if (record?.public !== false || !record.created_at) throw new Error("Registro de envio ausente.");
+        return readReceipt(await contact(ticket.requester_id), access.scope, access.request, record.created_at);
+      }
+      const config = await api.outboundConfig();
+      if (!config?.localToken) throw Error("Serviço local indisponível.");
+      return localRequest("/read", config.localToken, {ticketId: id});
+    },
+    async serviceWindow(ticketId) {
+      const id = safeId(ticketId);
+      const access = await api.sunshineScope();
+      if (access) {
+        const { ticket } = await request(`/api/v2/tickets/${id}.json`);
+        return sunshineWindow(await contact(ticket.requester_id), access.scope, access.request);
+      }
+      const config = await api.outboundConfig();
+      if (!config?.localToken) throw Error("Serviço local indisponível.");
+      return localRequest("/window", config.localToken, {ticketId: id});
+    },
+    async metaTemplates(input, action = "") {
+      if(!["","capabilities","media"].includes(action))throw new Error("Operação de templates inválida.");
       const { currentUser } = await client.get("currentUser");
       if (currentUser.role !== "admin") throw new Error("Somente administradores podem gerenciar templates.");
+      const access = await api.sunshineScope();
+      if (access) {
+        // Formatos avançados e upload de exemplo dependem de acesso direto à WABA, que
+        // não passa pela credencial da instalação: por aqui, só o que o Sunshine aceita.
+        if (action === "capabilities") return { advanced: false, media: false };
+        if (action === "media") throw new Error("O envio de arquivos de exemplo precisa do gerenciamento avançado na Meta.");
+        return whatsappTemplates(access.request, access.scope, input);
+      }
       const config = await api.outboundConfig();
-      if (!config?.localToken) throw new Error("Conecte o serviço local na área Configurar para gerenciar os templates do seu canal WhatsApp.");
-      return localRequest("/templates", config.localToken, input);
+      if (!config?.localToken) throw new Error("Informe a credencial da Conversations API nas configurações do app para gerenciar os templates do seu canal WhatsApp.");
+      return localRequest(`/templates${action ? `/${action}` : ""}`, config.localToken, input);
     },
     async metaConnection(action, input) {
       if (!["connect", "status", "select"].includes(action)) throw new Error("Ação inválida.");
@@ -190,6 +254,21 @@ export function zendesk(client) {
       unique.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
       return { messages: unique, ticketCount: tickets.length, failures };
     },
+    async findDuplicates(requester) {
+      const criteria = ["phone", "email", "name"];
+      const results = await Promise.allSettled(criteria.map(criterion => api.duplicates(requester, criterion)));
+      const users = new Map(), failedCriteria = [];
+      results.forEach((result, i) => {
+        if (result.status === "rejected") { failedCriteria.push(criteria[i]); return; }
+        for (const user of result.value) {
+          const id = String(user.id);
+          if (!users.has(id)) users.set(id, { ...user, matchReasons: [] });
+          users.get(id).matchReasons.push(criteria[i]);
+        }
+      });
+      if (failedCriteria.length === criteria.length) throw new Error("Não foi possível procurar duplicados. Tente novamente.");
+      return { users: [...users.values()], failedCriteria };
+    },
     async duplicates(requester, criterion = "phone") {
       if (!requester?.id) return [];
       const targetContact = await contact(requester.id);
@@ -264,27 +343,35 @@ export function zendesk(client) {
         );
       await client.invoke("ticket.editor.insert", fresh.text);
     },
-    async createTemplate({ title, text, groupIds }) {
+    // Catálogo do administrador: precisa ver também as macros inativas, que são as
+    // mensagens ainda aguardando aprovação da Meta.
+    async catalogEntries() {
       const { currentUser } = await client.get("currentUser");
       if (currentUser.role !== "admin")
-        throw new Error(
-          "Somente administradores podem cadastrar templates compartilhados.",
-        );
-      return request("/api/v2/macros.json", "POST", {
-        macro: {
-          title: `WhatsApp::${title}`,
-          active: true,
-          actions: [{ field: "comment_value", value: text }],
-          ...(groupIds.length
-            ? {
-                restriction: {
-                  type: "Group",
-                  ids: groupIds.map((id) => Number(safeId(id))),
-                },
-              }
-            : {}),
-        },
-      });
+        throw new Error("Somente administradores podem gerenciar o catálogo.");
+      const [active, inactive] = await Promise.all([
+        pages("/api/v2/macros.json?active=true", "macros"),
+        pages("/api/v2/macros.json?active=false", "macros"),
+      ]);
+      return [...active, ...inactive].map(catalogMacro).filter(Boolean);
+    },
+    async saveCatalogEntry({ macroId, title, text, groupIds = [], description = "", active = false }) {
+      const { currentUser } = await client.get("currentUser");
+      if (currentUser.role !== "admin")
+        throw new Error("Somente administradores podem cadastrar templates compartilhados.");
+      const macro = {
+        title: `WhatsApp::${title}`,
+        active,
+        description,
+        actions: [{ field: "comment_value", value: text }],
+        // null remove a restrição: sem grupo, a mensagem vale para toda a equipe.
+        restriction: groupIds.length
+          ? { type: "Group", ids: groupIds.map((id) => Number(safeId(id))) }
+          : null,
+      };
+      return macroId
+        ? request(`/api/v2/macros/${safeId(macroId)}.json`, "PUT", { macro })
+        : request("/api/v2/macros.json", "POST", { macro });
     },
     async previewMerge(sourceId, targetId) {
       if (String(sourceId) === String(targetId))

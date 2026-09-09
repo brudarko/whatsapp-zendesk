@@ -2,12 +2,15 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ThemeProvider } from "@zendeskgarden/react-theming";
 import { Button } from "@zendeskgarden/react-buttons";
-import { Field, Label, Input, Textarea } from "@zendeskgarden/react-forms";
-import { windowFromConversation, shorthand } from "./domain.js";
+import { Field, Label, Input, Textarea, Select, Checkbox } from "@zendeskgarden/react-forms";
+import { Tabs } from "@zendeskgarden/react-tabs";
+import { AppStyles, Notice, Disclosure } from "./GardenUI.jsx";
+import { parseTemplate } from "./outbound.js";
 import { zendesk } from "./zendesk.js";
 import { IdentityPanel } from "./IdentityPanel.jsx";
-import { CustomerMessages, LocalConnection } from "./CustomerMessages.jsx";
+import { CustomerMessages, CustomerSummary, LocalConnection } from "./CustomerMessages.jsx";
 import { MetaTemplates } from "./MetaTemplates.jsx";
+import { WindowStatus } from "./WindowStatus.jsx";
 import { TopBarMessages } from "./TopBarMessages.jsx";
 import "./style.css";
 
@@ -23,7 +26,7 @@ const empty = {
 function TextField({ label, value, onChange, multiline, ...props }) {
   const Control = multiline ? Textarea : Input;
   return (
-    <Field>
+    <Field className="app-field">
       <Label>{label}</Label>
       <Control
         value={value}
@@ -33,15 +36,38 @@ function TextField({ label, value, onChange, multiline, ...props }) {
     </Field>
   );
 }
-function Notice({ children, danger = false }) {
-  return (
-    <div
-      className={`notice ${danger ? "danger" : ""}`}
-      role={danger ? "alert" : "status"}
-    >
-      {children}
-    </div>
-  );
+
+// Estado das duas conexões: o canal WhatsApp (credencial da Conversations API
+// informada na instalação) e o serviço de envio (opcional, para disparo validado).
+function ServiceStatus({ api }) {
+  const [channel, setChannel] = useState(undefined), [service, setService] = useState(undefined);
+  useEffect(() => {
+    let alive = true;
+    api.sunshineScope()
+      .then(value => { if (alive) setChannel(value ? { integrationId: value.scope.integrationId } : null); })
+      .catch(e => { if (alive) setChannel({ error: e.message }); });
+    api.outboundConfig().then(value => { if (alive) setService(value); }).catch(() => { if (alive) setService(null); });
+    return () => { alive = false; };
+  }, [api]);
+  return <>
+    {channel === undefined ? <p role="status" className="cm-muted">Verificando o canal WhatsApp…</p>
+      : channel?.integrationId ? <Notice type="success">
+          <strong>Canal WhatsApp conectado</strong>
+          <p>Integração {channel.integrationId}</p>
+        </Notice>
+      : channel?.error ? <Notice danger><strong>Não foi possível ler o canal WhatsApp</strong><p>{channel.error}</p></Notice>
+      : <Notice>
+          <strong>Credencial da Conversations API ausente</strong>
+          <p>Preencha App ID, Key ID e Secret nas configurações do app, em Admin Center · Apps e integrações. A chave é criada em APIs · Conversations API.</p>
+        </Notice>}
+    {service === undefined ? null
+      : service?.host ? <Notice type="success"><strong>Serviço de envio conectado</strong><p>{service.host}</p></Notice>
+      : service?.localToken ? <Notice type="success"><strong>Serviço local conectado</strong><p>Vale só neste ambiente de desenvolvimento.</p></Notice>
+      : <Notice>
+          <strong>Envio ativo sem serviço</strong>
+          <p>Templates, histórico, janela de 24h e leitura funcionam pela credencial acima. O disparo de mensagem ativa precisa do servidor de envio, configurado no mesmo formulário.</p>
+        </Notice>}
+  </>;
 }
 
 function App() {
@@ -54,24 +80,23 @@ function App() {
     [connected, setConnected] = useState(false),
     [loading, setLoading] = useState(true),
     [now, setNow] = useState(Date.now());
-  const [autoMessage, setAutoMessage] = useState(""), [autoBusy, setAutoBusy] = useState(false);
-  const autoChecked = useRef(new Set()), autoTicket = useRef("");
+  const [autoBusy, setAutoBusy] = useState(false);
+  const autoChecked = useRef(new Set()), autoTicket = useRef(""), autoMerge = useRef(false);
   const operation = useRef(false),
     version = useRef(0);
-  const win = windowFromConversation(data.conversation, now);
   async function refresh(loc = location) {
     const id = ++version.current;
     const values = await api.load(loc);
     if (id !== version.current) return;
     setData(values);
+    const loaded = values;
     autoTicket.current = `${values.ticket?.id}:${values.ticket?.requester?.id}`;
-    if (loc !== "ticket_sidebar" || !values.ticket?.id || operation.current) return;
+    if (!autoMerge.current || loc !== "ticket_sidebar" || !values.ticket?.id || operation.current) return loaded;
     const key = `${values.ticket.id}:${values.ticket.requester?.id}`;
-    if (autoChecked.current.has(key)) return;
+    if (autoChecked.current.has(key)) return loaded;
     autoChecked.current.add(key);
     operation.current = true;
     setAutoBusy(true);
-    setAutoMessage("Verificando contatos duplicados…");
     try {
       const context = await client.context();
       const account = context.account?.subdomain;
@@ -92,13 +117,15 @@ function App() {
           localStorage.setItem(storageKey, new Date().toISOString());
         }});
       });
-      if (autoTicket.current === key) setAutoMessage(result.message);
+      // Só a fusão de fato executada vira aviso: o resultado "nada a fundir" é ruído.
+      if (autoTicket.current === key && result.merged) setNotice(result.message);
     } catch (e) {
-      if (autoTicket.current === key) setAutoMessage(e.message || "Não foi possível verificar os duplicados. Use a aba Contatos.");
+      if (autoTicket.current === key) setError(e.message || "Não foi possível verificar os duplicados. Use a aba Contatos.");
     } finally {
       operation.current = false;
       setAutoBusy(false);
     }
+    return loaded;
   }
   async function run(action) {
     if (operation.current) return;
@@ -134,13 +161,15 @@ function App() {
         if (!alive) return;
         setLocation(context.location);
         setConnected(true);
-        if (context.location === "nav_bar") setView("templates");
+        autoMerge.current = await api.autoMergeEnabled().catch(() => false);
         if (["user_sidebar", "top_bar"].includes(context.location)) setView("messages");
         await client.invoke("resize", {
           width: context.location === "top_bar" ? "400px" : context.location === "ticket_editor" ? "500px" : "100%",
           height: context.location === "top_bar" ? "420px" : context.location === "ticket_editor" ? "320px" : "640px",
         });
-        await refresh(context.location);
+        const values = await refresh(context.location);
+        // O menu lateral não tem catálogo: administrador cai em Gerenciar templates.
+        if (alive && context.location === "nav_bar") setView("meta");
         if (alive) setError("");
       } catch (e) {
         if (alive)
@@ -174,72 +203,32 @@ function App() {
   }, [connected, location]);
   return (
     <ThemeProvider>
-      <main className={location === "top_bar" ? "top-bar" : location === "ticket_editor" ? "editor" : ""}>
-        {data.ticket && (
-          <div className="customer">
-            <strong>{data.ticket.requester?.name || "Solicitante"}</strong>
-            <span>
-              Ticket #{data.ticket.id} ·{" "}
-              {data.ticket.assignee?.group?.name || "Sem grupo"}
-            </span>
-          </div>
-        )}
-        {data.customer && <div className="customer"><strong>{data.customer.name}</strong><span>Perfil #{data.customer.id} · {data.customer.phone || "Telefone não disponibilizado"}</span></div>}
-        {location !== "top_bar" && <nav aria-label="Áreas do aplicativo">
+      <AppStyles />
+      <main className={location === "top_bar" ? "top-bar" : location === "ticket_editor" ? "editor" : location === "nav_bar" ? "nav-page" : location === "user_sidebar" ? "customer-sidebar" : ""}>
+        <Tabs selectedItem={view} onChange={id => { setView(id); setError(""); setNotice(""); }}>
+        {location !== "top_bar" && <div className="app-tab-scroll"><Tabs.TabList aria-label="Áreas do aplicativo">
           {[
-            ...(["user_sidebar", "top_bar"].includes(location) ? [["messages", "Mensagens"]] : []),
-            ["templates", "Templates"],
-            ["contacts", "Contatos"],
-            ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["meta", "Criar templates"], ["setup", "Configurar"]] : []),
-          ].map(([id, label]) => (
-            <Button
-              key={id}
-              size="small"
-              isBasic={view !== id}
-              isPrimary={view === id}
-              aria-pressed={view === id}
-              onClick={() => {
-                setView(id);
-                setError("");
-                setNotice("");
-              }}
-            >
-              {label}
-            </Button>
-          ))}
-        </nav>}
+            ...(location === "user_sidebar" ? [["messages", "Enviar"], ["history", "Histórico"]] : []),
+            ...(["ticket_sidebar", "ticket_editor"].includes(location) ? [["templates", "Templates"]] : []),
+            ...(location === "nav_bar" ? [] : [["contacts", "Duplicados"]]),
+            ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["meta", "Gerenciar templates"], ["setup", "Configurações"]] : []),
+          ].map(([id, label]) => <Tabs.Tab key={id} item={id}>{label}</Tabs.Tab>)}
+        </Tabs.TabList></div>}
+        <Tabs.TabPanel item={view} className="app-panel">
         {error && <Notice danger>{error}</Notice>}
         {notice && <Notice>{notice}</Notice>}
-        {location === "ticket_sidebar" && autoMessage && <details><summary>Verificação de contatos</summary><p>{autoMessage}</p></details>}
+        {location === "nav_bar" && data.currentUser && data.currentUser.role !== "admin" &&
+          <Notice>Esta página é para administradores. Use o app no ticket ou no perfil do contato.</Notice>}
         {loading ? (
           <p role="status">Conectando ao Zendesk…</p>
         ) : (
           <>
-            {view === "meta" && location === "nav_bar" && data.currentUser?.role === "admin" && <MetaTemplates api={api} busy={busy} run={run} />}
-            {view === "messages" && data.customer && <CustomerMessages key={data.customer.id} customer={data.customer} data={data} api={api} location={location} busy={busy} run={run} notice={setNotice} />}
+            {view === "meta" && location === "nav_bar" && data.currentUser?.role === "admin" && <MetaTemplates api={api} busy={busy} run={run} groups={data.groups} />}
+            {data.customer && <CustomerMessages key={"messages:" + data.customer.id} customer={data.customer} data={data} api={api} location={location} busy={busy} run={run} notice={setNotice} pane={view} onTemplates={["ticket_sidebar", "ticket_editor"].includes(location) ? () => setView("templates") : undefined} />}
             {view === "messages" && location === "top_bar" && <TopBarMessages data={data} api={api} busy={busy} run={run} notice={setNotice} />}
             {view === "templates" && (
               <>
-                {data.ticket && <section className={`window ${win.state}`}>
-                  <strong>
-                    {win.state === "open"
-                      ? `Janela aberta · ${Math.ceil(win.remaining / 60000)} min restantes`
-                      : win.state === "closed"
-                        ? "Janela de 24 horas encerrada"
-                        : "Janela de atendimento não identificada"}
-                  </strong>
-                  <p>
-                    {win.state === "open"
-                      ? "Estimativa pelo histórico do ticket. A Meta determina a janela efetiva."
-                      : "Use um template aprovado. A janela só reabre quando o cliente responder."}
-                  </p>
-                  {win.expiresAt && (
-                    <small>
-                      Encerramento estimado:{" "}
-                      {new Date(win.expiresAt).toLocaleString("pt-BR")}
-                    </small>
-                  )}
-                </section>}
+                {data.ticket && <WindowStatus key={data.ticket.id} ticketId={data.ticket.id} messages={data.conversation} api={api} now={now} />}
                 <Templates
                   data={data}
                   busy={busy || autoBusy}
@@ -252,7 +241,7 @@ function App() {
             )}
             {view === "contacts" && (
               <Contacts
-                key={data.customer?.id ?? data.ticket?.requester?.id}
+                key={"contacts:" + (data.customer?.id ?? data.ticket?.requester?.id)}
                 data={data}
                 location={location}
                 run={run}
@@ -265,77 +254,19 @@ function App() {
             {view === "setup" && (
               <section>
                 <h2>Conecte seu atendimento</h2>
+                <ServiceStatus api={api} />
                 <LocalConnection api={api} busy={busy} run={run} />
-                <details><summary>Configuração técnica e diagnóstico</summary>
-                <p>Para testar a conexão Sunshine neste computador, execute <code>npm run setup:local</code> e abra o link privado mostrado no terminal. O assistente valida a chave e lista os números conectados. O envio só fica disponível após configurar também o acesso Support e o serviço HTTPS.</p>
-                <p>
-                  Use o número WhatsApp já conectado ao Zendesk. Não é
-                  necessário desconectá-lo para usar este app.
-                </p>
-                <ol>
-                  <li>
-                    <strong>Conectar o WhatsApp</strong>
-                    <p>
-                      Admin Center → Canais → Mensagens e redes sociais →
-                      Mensagens. Siga o assistente oficial de conexão.
-                    </p>
-                  </li>
-                  <li>
-                    <strong>Aprovar os templates</strong>
-                    <p>
-                      Crie os modelos no WhatsApp Manager. Cadastre os aprovados
-                      na aba Templates e selecione os grupos.
-                    </p>
-                    <a
-                      href="https://business.facebook.com/wa/manage/message-templates/"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Abrir WhatsApp Manager ↗
-                    </a>
-                  </li>
-                  <li>
-                    <strong>Conferir no ticket</strong>
-                    <p>
-                      Escolha WhatsApp no editor, insira um template e revise o
-                      destinatário antes do envio.
-                    </p>
-                  </li>
-                </ol>
-                <Notice>
-                  {connected
-                    ? "Conectado ao ZAF. Isso não confirma conexão da WABA nem entrega de mensagens."
-                    : "Aguardando abertura dentro do Zendesk."}
-                </Notice>
-                <details>
-                  <summary>Próxima etapa de integração</summary>
-                  <p>
-                    Primeiro contato via Notifications API, criação de templates
-                    na Meta, formatos avançados, acompanhamento dos envios,
-                    reconciliação Sunshine e fusão de tickets. Exigem integração de
-                    conversas, webhooks e validação no ambiente de testes.
-                  </p>
-                </details>
-                <p>
-                  O app será gratuito. Plano Zendesk, tarifas da Meta e eventual
-                  hospedagem continuam sujeitos aos respectivos provedores.
-                </p>
-                <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />
-                </details>
+                <Disclosure title="Diagnóstico">
+                  <p>{connected ? "Zendesk conectado." : "Aguardando conexão com o Zendesk."}</p>
+                  <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />
+                </Disclosure>
               </section>
             )}
           </>
         )}
-        {location !== "top_bar" && <footer>
-          <Button
-            size="small"
-            isBasic
-            disabled={!connected || busy || autoBusy}
-            onClick={() => run(() => refresh())}
-          >
-            Atualizar
-          </Button>
-        </footer>}
+
+        </Tabs.TabPanel>
+        </Tabs>
       </main>
     </ThemeProvider>
   );
@@ -344,8 +275,7 @@ function App() {
 function Templates({ data, busy, connected, run, notice, refresh }) {
   const [query, setQuery] = useState(""),
     [group, setGroup] = useState(""),
-    [selected, setSelected] = useState(null),
-    [create, setCreate] = useState(false);
+    [selected, setSelected] = useState(null);
   const filtered = data.templates.filter(
     (t) =>
       t.label
@@ -357,69 +287,49 @@ function Templates({ data, busy, connected, run, notice, refresh }) {
     <section>
       <div className="section-title">
         <h2>Seus templates</h2>
-        {data.currentUser?.role === "admin" && (
-          <Button size="small" onClick={() => setCreate(!create)}>
-            {create ? "Fechar" : "Adicionar aprovado"}
-          </Button>
-        )}
+        <div className="tm-actions"><Button size="small" isBasic disabled={!connected || busy} onClick={() => run(() => refresh())}>Atualizar</Button></div>
       </div>
-      {create && (
-        <TemplateForm
-          groups={data.groups}
-          busy={busy}
-          submit={(values) =>
-            run(async () => {
-              await api.createTemplate(values);
-              notice(
-                "Macro cadastrada no Zendesk. Este cadastro não envia o template à Meta.",
-              );
-              setCreate(false);
-              await refresh();
-            })
-          }
-        />
-      )}
       <TextField
         label="Buscar template"
         value={query}
         onChange={setQuery}
         placeholder="Nome do template"
       />
-      <label className="select-label">
-        Grupo
-        <select value={group} onChange={(e) => setGroup(e.target.value)}>
-          <option value="">Todos disponíveis para mim</option>
+      <Field className="app-field">
+        <Label>Grupo</Label>
+        <Select value={group} onChange={(e) => setGroup(e.target.value)}>
+          <option value="">Todos os grupos</option>
           {data.groups.map((g) => (
             <option key={g.id} value={g.id}>
               {g.name}
             </option>
           ))}
-        </select>
-      </label>
+        </Select>
+      </Field>
       {!filtered.length && (
         <div className="empty">
           <h3>Nenhum template encontrado</h3>
           <p>
-            Cadastre uma macro de template aprovado com o prefixo WhatsApp::. As
-            permissões de grupo são controladas pelo Zendesk.
+            {data.templates.length ? "Tente outro nome ou grupo." : "Os templates adicionados ao catálogo aparecerão aqui."}
           </p>
         </div>
       )}
       {filtered.map((t) => (
         <button className="template" key={t.id} onClick={() => setSelected(t)}>
           <strong>{t.label}</strong>
+          {t.useCase && <span className="template-use-case">{t.useCase}</span>}
           <span>
-            {t.groupIds.length ? "Restrito por grupo" : "Compartilhado"} · Macro
-            Zendesk
+            {t.groupIds.length ? "Restrito por grupo" : "Compartilhado"}
           </span>
         </button>
       ))}
       {selected && (
         <div className="card">
           <h3>{selected.label}</h3>
-          <pre>{selected.text}</pre>
+          {selected.useCase && <p>{selected.useCase}</p>}
+          <div className="cm-preview"><p>{(() => { try { return parseTemplate(selected.text).config.fallback; } catch { return selected.text; } })()}</p></div>
           <p>
-            {data.customer ? "Confira a aprovação no WhatsApp Manager. Para enviar a este contato, abra a aba Mensagens." : "Confira a aprovação no WhatsApp Manager. Depois de inserir, revise e envie pelo editor."}
+            {data.customer ? "Envie pela aba Enviar." : "Revise no editor antes de enviar."}
           </p>
           {!data.customer && <Button
             isPrimary
@@ -442,145 +352,10 @@ function Templates({ data, busy, connected, run, notice, refresh }) {
   );
 }
 
-function TemplateForm({ groups, busy, submit }) {
-  const [title, setTitle] = useState(""),
-    [name, setName] = useState(""),
-    [language, setLanguage] = useState("pt_BR"),
-    [fallback, setFallback] = useState(""),
-    [params, setParams] = useState(""),
-    [headerType, setHeaderType] = useState(""),
-    [headerValue, setHeaderValue] = useState(""),
-    [groupIds, setGroupIds] = useState([]),
-    [confirmed, setConfirmed] = useState(false),
-    [error, setError] = useState("");
-  return (
-    <form
-      className="card"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setError("");
-        try {
-          if (!confirmed) throw new Error("Confira a aprovação na Meta.");
-          submit({
-            title,
-            text: shorthand({
-              name,
-              language,
-              fallback,
-              parameters: params ? params.split("\n") : [],
-              headerType,
-              headerValue,
-            }),
-            groupIds,
-          });
-        } catch (err) {
-          setError(err.message);
-        }
-      }}
-    >
-      <h3>Cadastrar template aprovado</h3>
-      <p>
-        Esta etapa organiza modelos existentes. Criação e aprovação continuam no
-        WhatsApp Manager.
-      </p>
-      {error && <Notice danger>{error}</Notice>}
-      <TextField
-        label="Nome para a equipe"
-        value={title}
-        onChange={setTitle}
-        required
-        maxLength={150}
-      />
-      <TextField
-        label="Nome exato na Meta"
-        value={name}
-        onChange={setName}
-        required
-        placeholder="retomar_atendimento"
-      />
-      <TextField
-        label="Idioma"
-        value={language}
-        onChange={setLanguage}
-        required
-      />
-      <TextField
-        label="Texto alternativo"
-        value={fallback}
-        onChange={setFallback}
-        multiline
-        required
-      />
-      <TextField
-        label="Valores das variáveis, um por linha"
-        value={params}
-        onChange={setParams}
-        multiline
-      />
-      <label className="select-label">
-        Cabeçalho
-        <select
-          value={headerType}
-          onChange={(e) => setHeaderType(e.target.value)}
-        >
-          <option value="">Sem cabeçalho</option>
-          <option value="text">Texto</option>
-          <option value="image">Imagem</option>
-          <option value="document">Documento</option>
-        </select>
-      </label>
-      {headerType && (
-        <TextField
-          label={
-            headerType === "text" ? "Texto do cabeçalho" : "URL HTTPS da mídia"
-          }
-          value={headerValue}
-          onChange={setHeaderValue}
-          required
-        />
-      )}
-      <fieldset>
-        <legend>Grupos com acesso</legend>
-        <p>
-          Nenhum selecionado: todos os agentes com acesso às macros
-          compartilhadas.
-        </p>
-        {groups.map((g) => (
-          <label className="check" key={g.id}>
-            <input
-              type="checkbox"
-              checked={groupIds.includes(g.id)}
-              onChange={(e) =>
-                setGroupIds(
-                  e.target.checked
-                    ? [...groupIds, g.id]
-                    : groupIds.filter((id) => id !== g.id),
-                )
-              }
-            />
-            {g.name}
-          </label>
-        ))}
-      </fieldset>
-      <label className="check">
-        <input
-          type="checkbox"
-          required
-          checked={confirmed}
-          onChange={(e) => setConfirmed(e.target.checked)}
-        />
-        Conferi que este template e idioma estão aprovados na Meta.
-      </label>
-      <Button type="submit" isPrimary disabled={busy}>
-        Salvar no catálogo Zendesk
-      </Button>
-    </form>
-  );
-}
-
 function Contacts({ data, location, run, busy, notice, refresh }) {
-  const [criterion, setCriterion] = useState("phone"),
-    [matches, setMatches] = useState(null),
+  const [matches, setMatches] = useState(null),
+    [searching, setSearching] = useState(false),
+    [failedCriteria, setFailedCriteria] = useState([]),
     [review, setReview] = useState(null),
     [confirmed, setConfirmed] = useState(false),
     [lossesAccepted, setLossesAccepted] = useState(false);
@@ -590,50 +365,57 @@ function Contacts({ data, location, run, busy, notice, refresh }) {
     resetReview();
     setReview(await api.previewMerge(sourceId, targetId));
   }
-  if (!requester?.id) return <div className="empty"><h2>Abra um ticket</h2>
-    <p>A busca compara o solicitante com outros usuários finais do Zendesk.</p></div>;
-  return <section>
-    <h2>Uma pessoa, um histórico</h2>
-    <p>Telefone, e-mail e nome localizam candidatos. Confira a identidade antes de fundir.</p>
-    <label className="select-label">Buscar possíveis duplicados por
-      <select value={criterion} disabled={busy} onChange={(e) => {
-        setCriterion(e.target.value); setMatches(null); resetReview();
-      }}>
-        <option value="phone">Telefone brasileiro</option><option value="email">E-mail</option><option value="name">Nome</option>
-      </select>
-    </label>
-    <Button disabled={busy} onClick={() => run(async () => {
-      resetReview(); setMatches(await api.duplicates(requester, criterion));
-    })}>Buscar contatos</Button>
-    {matches?.length === 0 && <Notice>Nenhum candidato encontrado. Isso não garante ausência de duplicados.</Notice>}
-    {matches?.map((user) => <div className="card" key={user.id}>
-      <strong>{user.name} · #{user.id}</strong><p>{user.phone || "Sem telefone"}<br />{user.email || "Sem e-mail"}</p>
-      <Button size="small" disabled={busy} onClick={() => run(() => preview(user.id, requester.id))}>Revisar fusão</Button>
-    </div>)}
-    {review && <div className="card">
-      <h3>Conferir antes de fundir</h3>
-      <p>O perfil <strong>#{review.source.user.id}</strong> será incorporado a <strong>#{review.target.user.id}</strong>. A operação é irreversível.</p>
+  const reasonLabels = {phone: "Telefone", email: "E-mail", name: "Nome semelhante"};
+  if (!requester?.id) return <div className="empty"><h2>Selecione um contato</h2>
+    <p>Abra um ticket ou perfil para procurar duplicados.</p></div>;
+  return <section className="contacts-workspace">
+    {!review && <>
+      <div className="duplicates-intro"><h2>Unir contatos duplicados</h2></div>
+      <Button isPrimary disabled={busy} onClick={() => run(async () => {
+        resetReview(); setMatches(null); setFailedCriteria([]); setSearching(true);
+        try {
+          const result = await api.findDuplicates(requester);
+          setMatches(result.users); setFailedCriteria(result.failedCriteria);
+        } finally { setSearching(false); }
+      })}>{searching ? "Procurando…" : matches === null ? "Procurar duplicados" : "Procurar novamente"}</Button>
+      {failedCriteria.length > 0 && <Notice>Busca parcial. Não foi possível consultar por {failedCriteria.map(c => reasonLabels[c].toLowerCase()).join(", ")}.</Notice>}
+      {matches?.length === 0 && <div className="cm-empty contacts-results"><strong>Nenhum duplicado encontrado</strong></div>}
+      {matches?.length > 0 && <div className="contacts-results"><p className="cm-muted">{matches.length} {matches.length === 1 ? "possível duplicado" : "possíveis duplicados"}</p>
+        {matches.map(user => <article className="card duplicate-card" key={user.id}>
+          <CustomerSummary customer={user} />
+          {user.email && <p className="duplicate-email">{user.email}</p>}
+          <p className="cm-muted">Encontrado por {user.matchReasons.map(c => reasonLabels[c].toLowerCase()).join(" e ")}</p>
+          <Button size="small" disabled={busy} onClick={() => run(() => preview(user.id, requester.id))}>Revisar e fundir</Button>
+        </article>)}
+      </div>}
+    </>}
+    {review && <div className="merge-review">
+      <Button size="small" isBasic disabled={busy} onClick={resetReview}>Voltar aos resultados</Button>
+      <h2>Revisar fusão</h2>
+      <p>Os contatos serão reunidos no perfil principal do Zendesk. Esta ação não pode ser desfeita.</p>
       <Button size="small" disabled={busy} onClick={() => run(() => preview(review.target.user.id, review.source.user.id))}>Inverter perfil principal</Button>
-      {[['Perfil que será descartado', review.source], ['Perfil principal', review.target]].map(([title, profile]) =>
+      {[['Contato que será incorporado', review.source], ['Perfil principal · será mantido', review.target]].map(([title, profile]) =>
         <div key={title} className="card"><h3>{title}</h3>
-          <p>{profile.user.name} · #{profile.user.id}<br />{profile.user.email || "Sem e-mail"}<br />{profile.user.phone || "Sem telefone"}</p>
-          <p>Organização: {profile.user.organization_id || "Sem organização"}<br />ID externo: {profile.user.external_id || "Ausente"}</p>
-          <details><summary>Identidades do perfil ({profile.identities.length})</summary>
+          <CustomerSummary customer={profile.user} />
+          {profile.user.email && <p className="duplicate-email">{profile.user.email}</p>}
+          <span className="cm-muted">Perfil #{profile.user.id}</span>
+          <Disclosure title="Mais informações" level={4} isCompact>
+            <p>Organização: {profile.user.organization_id || "Sem organização"}<br />ID externo: {profile.user.external_id || "Ausente"}</p>
             <ul>{profile.identities.map((i) => <li key={i.id}>{i.type}: <code>{i.value}</code>{i.primary ? " · principal" : ""}</li>)}</ul>
-          </details>
+          </Disclosure>
         </div>)}
-      <Notice>Esta ação funde perfis do Support. Os IDs de messaging são vínculos com o Sunshine; não comprovam fusão dos usuários Sunshine. Nome, idioma e fuso do perfil principal serão mantidos. Organizações e acesso aos tickets precisam ser revisados.</Notice>
+      <Disclosure title="O que será mantido" isCompact><p>Nome, idioma e fuso horário do perfil principal. A fusão afeta os contatos do Zendesk; não confirma fusão no Sunshine.</p></Disclosure>
       {review.blockers.map((reason) => <Notice danger key={reason}>{reason}</Notice>)}
       {review.losses.length > 0 && <>
         <h3>Dados da origem que não serão preservados</h3>
-        {review.losses.map((loss) => <details key={loss.field}><summary>{loss.field}</summary>
+        {review.losses.map((loss) => <Disclosure key={loss.field} title={loss.field} level={4} isCompact>
           <p>Origem:</p><pre>{JSON.stringify(loss.source, null, 2)}</pre>
           <p>Valor mantido no destino:</p><pre>{JSON.stringify(loss.target, null, 2)}</pre>
-        </details>)}
+        </Disclosure>)}
         <p>Para preservar esses valores, ajuste o perfil principal no Zendesk e abra outra revisão antes de fundir.</p>
-        <label className="check"><input type="checkbox" disabled={busy} checked={lossesAccepted} onChange={(e) => setLossesAccepted(e.target.checked)} />Aceito descartar os valores listados acima.</label>
+        <Field className="app-field"><Checkbox disabled={busy} checked={lossesAccepted} onChange={(e) => setLossesAccepted(e.target.checked)}><Label>Aceito descartar os valores listados acima.</Label></Checkbox></Field>
       </>}
-      <label className="check"><input type="checkbox" disabled={busy} checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />Confirmei que os perfis são da mesma pessoa e que o perfil principal está correto.</label>
+      <Field className="app-field"><Checkbox disabled={busy} checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)}><Label>É a mesma pessoa e escolhi o perfil principal correto.</Label></Checkbox></Field>
       <Button isDanger disabled={busy || !confirmed || review.blockers.length > 0 || (review.losses.length > 0 && !lossesAccepted)} onClick={() => run(async () => {
         await api.assertContactContext(requester.id, location);
         const selected = review;
@@ -641,12 +423,12 @@ function Contacts({ data, location, run, busy, notice, refresh }) {
         const result = await api.mergeUser(selected, lossesAccepted);
         setMatches(null);
         notice(result.verified
-          ? `Fusão Support concluída. Perfil principal #${result.survivor.user.id}; ${result.messaging.length} vínculo(s) messaging encontrado(s). Fusão Sunshine não verificada.`
+          ? `Contatos fundidos no Zendesk. Perfil principal #${result.survivor.user.id}.`
           : "Zendesk aceitou a fusão, mas a consulta do perfil principal falhou. Confira o resultado antes de continuar.");
         if (location === "user_sidebar" && String(selected.source.user.id) === String(requester.id)) {
           await client.invoke("routeTo", "user", selected.target.user.id);
         } else await refresh();
-      })}>Fundir perfis do Support</Button>
+      })}>Fundir contatos</Button>
     </div>}
   </section>;
 }

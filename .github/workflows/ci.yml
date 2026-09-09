@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      # O pacote publicado não pode conter o caminho de serviço local do desenvolvimento.
+      - name: assets/app.js sem código de desenvolvimento
+        run: |
+          for pattern in '127.0.0.1:8787' 'whatsapp-local-token'; do
+            if grep -q "$pattern" assets/app.js; then
+              echo "build de produção contém $pattern"
+              exit 1
+            fi
+          done

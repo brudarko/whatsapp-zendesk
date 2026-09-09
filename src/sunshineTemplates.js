@@ -1,4 +1,4 @@
-import { metaTemplate } from "../src/metaTemplate.js";
+import { metaTemplate } from "./metaTemplate.js";
 
 export async function whatsappTemplates(sunshine, scope, input) {
   if (![scope.appId, scope.integrationId].every(id => /^[a-f0-9]{24}$/i.test(id)))
@@ -6,7 +6,10 @@ export async function whatsappTemplates(sunshine, scope, input) {
   const path = `/v1.1/apps/${scope.appId}/integrations/${scope.integrationId}/messageTemplates`;
   if (input !== undefined) {
     // Never retry a creation whose outcome is unknown.
-    const result = await sunshine(path, "POST", metaTemplate(input));
+    const payload = metaTemplate(input);
+    // Sunshine v1.1 uses camelCase for this field; Meta uses phone_number.
+    for(const c of payload.components)for(const b of c.buttons||[])if(b.phone_number){b.phoneNumber=b.phone_number;delete b.phone_number;}
+    const result = await sunshine(path, "POST", payload);
     if (!result.messageTemplate?.id) throw new Error("Criação não confirmada. Confira os templates antes de tentar novamente.");
     return result.messageTemplate;
   }

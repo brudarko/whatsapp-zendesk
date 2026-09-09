@@ -1,5 +1,5 @@
 {
-  "name": "WhatsApp Active Messages",
+  "name": "WhatsApp Management",
   "author": {
     "name": "Bruno Gabriel",
     "email": "brudarko@gmail.com"
@@ -33,9 +33,42 @@
   "version": "0.1.0",
   "frameworkVersion": "2.0",
   "domainWhitelist": [
-    "{{setting.outbound_service_host}}"
+    "{{setting.outbound_service_host}}",
+    "*.zendesk.com"
   ],
   "parameters": [
+    {
+      "name": "sunshine_app_id",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "sunshine_key_id",
+      "type": "text",
+      "required": true
+    },
+    {
+      "name": "sunshine_secret",
+      "type": "text",
+      "secure": true,
+      "required": true
+    },
+    {
+      "name": "whatsapp_integration_id",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "meta_portfolio_id",
+      "type": "text",
+      "required": false
+    },
+    {
+      "name": "auto_merge_contacts",
+      "type": "checkbox",
+      "default": false,
+      "required": false
+    },
     {
       "name": "outbound_service_host",
       "type": "text",

@@ -148,3 +148,35 @@ test("automatic merge refuses distinct Sunshine users and missing repetition pro
   await assert.rejects(g.api.autoMergeOnOpen(3), /Proteção/);
   assert.equal(g.writes.length, 0);
 });
+
+test("one-click duplicate search combines criteria, deduplicates and reports partial failures", async () => {
+  const api = zendesk({ request: async () => { throw Error('Unexpected request'); } });
+  const calls = [];
+  api.duplicates = async (user, criterion) => {
+    calls.push(criterion);
+    if (criterion === 'email') throw Error('Forbidden');
+    return criterion === 'phone' ? [{id:12,name:'Ana'}] : [{id:'12',name:'Ana'},{id:13,name:'Ana Silva'}];
+  };
+  const result = await api.findDuplicates({id:11});
+  assert.deepEqual(calls,['phone','email','name']);
+  assert.deepEqual(result.users.map(u => u.matchReasons),[['phone','name'],['name']]);
+  assert.deepEqual(result.failedCriteria,['email']);
+  api.duplicates = async () => { throw Error('Offline'); };
+  await assert.rejects(api.findDuplicates({id:11}),/Não foi possível/);
+  api.duplicates = async () => [];
+  assert.deepEqual(await api.findDuplicates({id:11}),{users:[],failedCriteria:[]});
+});
+
+test("automatic merge stays off until the admin turns the setting on", async () => {
+  const settings = {};
+  const api = zendesk({
+    metadata: async () => ({ settings }),
+    get: async () => ({ currentUser: { role: "admin" } }),
+    request: async () => ({}),
+  });
+  assert.equal(await api.autoMergeEnabled(), false);
+  settings.auto_merge_contacts = "true"; // string do formulário não conta como consentimento
+  assert.equal(await api.autoMergeEnabled(), false);
+  settings.auto_merge_contacts = true;
+  assert.equal(await api.autoMergeEnabled(), true);
+});

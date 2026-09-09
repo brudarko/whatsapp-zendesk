@@ -1,10 +1,34 @@
 {
   "app": {
-    "name": "WhatsApp para Zendesk",
+    "name": "WhatsApp Management",
     "short_description": "Templates e revisão de contatos brasileiros dentro do atendimento.",
     "long_description": "App open source em desenvolvimento. Organize templates aprovados por grupo, insira mensagens no editor e revise possíveis contatos duplicados. Recursos avançados ainda dependem de integração com Sunshine Conversations e Meta.",
     "installation_instructions": "Instale no ambiente de testes e conecte o WhatsApp pelo assistente oficial do Zendesk. Leia o README antes de usar fusão de usuários.",
     "parameters": {
+      "sunshine_app_id": {
+        "label": "App ID da Conversations API",
+        "helpText": "Admin Center · Apps e integrações · APIs · Conversations API. Crie uma chave e copie o App ID."
+      },
+      "sunshine_key_id": {
+        "label": "Key ID da Conversations API",
+        "helpText": "Começa com app_. Vem junto do App ID."
+      },
+      "sunshine_secret": {
+        "label": "Secret key da Conversations API",
+        "helpText": "O Zendesk mostra o secret uma única vez. Fica guardado como configuração protegida e não é lido pelo navegador."
+      },
+      "whatsapp_integration_id": {
+        "label": "ID da integração WhatsApp (opcional)",
+        "helpText": "Deixe vazio se a conta tem um número. Com mais de um, o app informa os IDs disponíveis para você escolher."
+      },
+      "meta_portfolio_id": {
+        "label": "ID do portfólio empresarial Meta (opcional)",
+        "helpText": "Necessário só para enviar a contatos identificados por BSUID, sem telefone. Não é o ID da WABA."
+      },
+      "auto_merge_contacts": {
+        "label": "Fundir contatos duplicados automaticamente",
+        "helpText": "Desligado por padrão. Ligado, abrir um ticket WhatsApp funde um único duplicado comprovado sem perguntar. A fusão de perfis Support não pode ser desfeita."
+      },
       "outbound_service_host": {
         "label": "Servidor de envio (domínio HTTPS)",
         "helpText": "Opcional. Sem esta conexão, o histórico e a fusão continuam disponíveis."

@@ -4,3 +4,5 @@ tmp/
 !.env.example
 assets/app.js
 assets/app.css
+.token-optimizer/
+.cursor/

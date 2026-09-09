@@ -4,7 +4,7 @@
 
 1. Na pasta do projeto, execute `npm ci` e `npm run dev`.
 2. Abra https://d3v-brudarko.zendesk.com/agent/tickets/1?zcli_apps=true.
-3. Abra Apps → WhatsApp Active Messages → Destinatário.
+3. Abra Apps → WhatsApp Management → Destinatário.
 4. Em Visualização, escolha os dados reais do ticket ou um cenário simulado.
 
 Os cenários BSUID sem telefone, confirmação pendente, destinos divergentes, outra integração e ausência de vínculo usam dados fictícios e não oferecem ação de envio. A simulação não substitui o solicitante do ticket, não altera as outras abas e não cria registros. A leitura de contatos reais usa as permissões ZAF do agente. O servidor ZCLI precisa continuar executando; isso não instala permanentemente o app.

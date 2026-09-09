@@ -12,6 +12,8 @@ npm test
 npm run dev
 ```
 
+`npm run dev` usa `npm run build:dev`, que mantém o caminho do serviço local (`127.0.0.1:8787`). `npm run build`, usado por `validate`, `package` e pelo CI, define `LOCAL_SERVICE=false` e remove esse caminho do pacote publicado.
+
 O ZCLI serve o app em `http://localhost:4567`. Abra um ticket no ambiente de testes e acrescente `?zcli_apps=true`. Exemplo: `https://d3v-brudarko.zendesk.com/agent/tickets/1?zcli_apps=true`. Clique em Apps na lateral ou no ícone do app no editor. O app também aparece na navegação.
 
 Fluxo de desenvolvimento baseado no [quick start oficial](https://developer.zendesk.com/documentation/apps/getting-started/zendesk-app-quick-start/). O ZCLI requer configuração própria para validar e empacotar, separada da sessão autenticada no navegador:
@@ -26,7 +28,7 @@ Não coloque credenciais no repositório. Histórico, macros e fusão Support us
 
 ## Implementado
 
-- Cadastro e consulta de templates WhatsApp pelo Sunshine, usando o canal conectado ao Zendesk sem login Meta adicional. Formulário de texto com variáveis e exemplos; listagem paginada de conteúdo e status. Criação validada com API simulada e leitura real validada com lista vazia.
+- Cadastro e consulta de templates WhatsApp pelo Sunshine, usando o canal conectado ao Zendesk sem login Meta adicional. Editor Garden exclusivo da navegação lateral, com catálogo, escolha de formato, variáveis, exemplos, prévia e revisão. Texto e botões básicos pelo Sunshine; formatos avançados condicionados ao gerenciamento Meta da mesma WABA. [Formatos e limites](docs/template-experience.md). Criação básica real validada com HTTP 201 e status PENDING; formatos avançados ainda sem homologação real.
 
 - Menu superior com ícone WhatsApp: busca por número/nome, escolha de customer existente ou cadastro automático por nome e telefone ao confirmar template e variáveis. Busca novamente duplicados antes de criar. Primeiro envio por número disponível no serviço para contatos sem vínculo messaging; conflitos de identidade continuam bloqueados.
 
@@ -47,9 +49,9 @@ Não coloque credenciais no repositório. Histórico, macros e fusão Support us
 
 ## Ainda pendente
 
-Sincronização dos templates aprovados com o catálogo de envio, formatos avançados, recibos de entrega/leitura, confirmação de identidades via webhook, reconciliação automática Sunshine e fusão de tickets, onboarding completo WABA e OAuth/publicação no Marketplace. O serviço privado de envio não implementa fila de entregas ou persistência de identidades. Não usar em produção como solução completa.
+Sincronização dos templates aprovados com o catálogo de envio, homologação dos formatos avançados e implementação de pagamentos, recibos de entrega/leitura, confirmação de identidades via webhook, reconciliação automática Sunshine e fusão de tickets, onboarding completo WABA e OAuth/publicação no Marketplace. O serviço privado de envio não implementa fila de entregas ou persistência de identidades. Não usar em produção como solução completa.
 
-Leia a [pesquisa e arquitetura](docs/pesquisa-e-arquitetura.md), que registra fontes, restrições e o restante do trabalho, e a [investigação de fusão de contatos e BSUID](docs/fusao-contatos-e-bsuid.md). A fusão agora mostra perdas e vínculos de identidades, mas ainda não reconcilia usuários Sunshine nem automatiza preservação de dados. Não está pronta para operação automática. O manifesto continua privado para desenvolvimento; a publicação gratuita ainda não foi realizada.
+Leia a [pesquisa e arquitetura](docs/pesquisa-e-arquitetura.md), que registra fontes, restrições e o restante do trabalho, e a [investigação de fusão de contatos e BSUID](docs/fusao-contatos-e-bsuid.md). A fusão agora mostra perdas e vínculos de identidades, mas ainda não reconcilia usuários Sunshine nem automatiza preservação de dados. Não está pronta para operação automática. O manifesto continua privado para desenvolvimento; a publicação gratuita ainda não foi realizada. O que falta para publicar está em [Publicação no Marketplace](docs/marketplace.md).
 
 ## Dados e custos
 
@@ -59,7 +61,7 @@ O app não cobra licença. Zendesk, Meta e eventual hospedagem têm custos e req
 
 ## Validação de Customers
 
-26 testes e build locais passaram. O painel foi carregado com dados fictícios e mutações desabilitadas: histórico de dois tickets e bloqueio de envio sem serviço configurado. Testes exercitam registro prévio, validação de agente/template, BSUID e timeout sem repetição. Envio real, recibos e vínculo nativo da conversa continuam sem homologação. Configuração: [Customers e envio](docs/customers-e-envio.md).
+A suíte local e o build verificam as funcionalidades implementadas. O painel foi carregado com dados fictícios e mutações desabilitadas: histórico de dois tickets e bloqueio de envio sem serviço configurado. Testes exercitam registro prévio, validação de agente/template, BSUID e timeout sem repetição. Envio real, recibos e vínculo nativo da conversa continuam sem homologação. Configuração: [Customers e envio](docs/customers-e-envio.md).
 
 ## Validação inicial (histórica)
 

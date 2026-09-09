@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { Field, Label, Select } from "@zendeskgarden/react-forms";
+import { Notice, Disclosure } from "./GardenUI.jsx";
 import { messagingIds, resolveWhatsApp, notificationDestination } from "./identity.js";
 
 const scope = { appId: "aaaaaaaaaaaaaaaaaaaaaaaa", portfolioId: "portfolio-demonstracao", integrationId: "bbbbbbbbbbbbbbbbbbbbbbbb" };
@@ -27,18 +29,19 @@ export function IdentityPanel({ requesterId, api }) {
   return <section>
     <h2>Destinatário WhatsApp</h2>
     <p>O contato pode usar WhatsApp sem disponibilizar o telefone. O ID de messaging aponta para o Sunshine; ele não é o BSUID.</p>
-    <label className="select-label">Visualização
-      <select value={scenario} onChange={(e) => setScenario(e.target.value)}>
+    <Field className="app-field">
+      <Label>Visualização</Label>
+      <Select value={scenario} onChange={(e) => setScenario(e.target.value)}>
         <option value="real">Dados do contato atual</option>
         <option value="bsuid">Simular BSUID sem telefone</option>
         <option value="pending">Simular confirmação pendente</option>
         <option value="ambiguous">Simular destinos divergentes</option>
         <option value="other">Simular outra integração</option>
         <option value="none">Simular contato sem vínculo</option>
-      </select>
-    </label>
+      </Select>
+    </Field>
     {scenario === "real" ? <>
-      {error && <p role="alert">{error}</p>}
+      {error && <Notice danger>{error}</Notice>}
       {!requesterId && <p>Abra um ticket ou perfil em Customers para consultar o contato. Os exemplos acima funcionam sem WABA.</p>}
       {requesterId && !contact && !error && <p role="status">Consultando identidades…</p>}
       {contact && <div className="card">
@@ -48,13 +51,13 @@ export function IdentityPanel({ requesterId, api }) {
         <p>BSUID ainda não consultado. A leitura dos clientes Sunshine exige credenciais de conversas no serviço; a sessão Support não confirma o destinatário WhatsApp.</p>
       </div>}
     </> : <>
-      <div className="notice" role="status">Simulação com dados fictícios. Nenhuma mensagem ou alteração será enviada ao Zendesk ou à Meta.</div>
+      <Notice>Simulação com dados fictícios. Nenhuma mensagem ou alteração será enviada ao Zendesk ou à Meta.</Notice>
       <div className="card"><h3>{identity.name}</h3>
         <p>{identity.phone || "Telefone não disponibilizado"}</p>
         {identity.state === "resolved" ? <><strong>Destinatário resolvido na simulação</strong>
           <p>BSUID: <code>{identity.identifier.value}</code></p>
           <p>Portfólio: {identity.scope.portfolioId}</p>
-          <details><summary>Destino preparado para a API</summary><pre>{JSON.stringify(notificationDestination(identity, scope), null, 2)}</pre></details>
+          <Disclosure title="Destino preparado para a API" level={4} isCompact><pre>{JSON.stringify(notificationDestination(identity, scope), null, 2)}</pre></Disclosure>
         </> : <p role="status">{identity.reason}</p>}
       </div>
     </>}
