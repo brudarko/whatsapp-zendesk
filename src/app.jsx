@@ -84,7 +84,7 @@ function App() {
     [loading, setLoading] = useState(true),
     [now, setNow] = useState(Date.now());
   const [autoBusy, setAutoBusy] = useState(false);
-  const autoChecked = useRef(new Set()), autoTicket = useRef(""), autoMerge = useRef(false);
+  const autoChecked = useRef(new Set()), autoTicket = useRef(""), autoMerge = useRef(false), autoRunning = useRef(false);
   const operation = useRef(false),
     version = useRef(0);
   async function refresh(loc = location) {
@@ -94,11 +94,14 @@ function App() {
     setData(values);
     const loaded = values;
     autoTicket.current = `${values.ticket?.id}:${values.ticket?.requester?.id}`;
-    if (!autoMerge.current || loc !== "ticket_sidebar" || !values.ticket?.id || operation.current) return loaded;
+    if (!autoMerge.current || loc !== "ticket_sidebar" || !values.ticket?.id || operation.current || autoRunning.current) return loaded;
     const key = `${values.ticket.id}:${values.ticket.requester?.id}`;
     if (autoChecked.current.has(key)) return loaded;
     autoChecked.current.add(key);
-    operation.current = true;
+    // Trava própria: a verificação automática não pode bloquear as ações do agente,
+    // que são serializadas por run(). Antes ela tomava o mesmo mutex e, enquanto
+    // esperava, todo clique era engolido em silêncio.
+    autoRunning.current = true;
     setAutoBusy(true);
     try {
       const context = await client.context();
@@ -106,7 +109,10 @@ function App() {
       if (!account || !navigator.locks?.request)
         throw new Error("Fusão automática indisponível: não foi possível proteger a operação contra repetição.");
       // ponytail: browser-local lock; separate computers still depend on Zendesk's merge validation.
-      const result = await navigator.locks.request(`wa-merge:${account}`, async () => {
+      // ifAvailable evita fila: com o app aberto em várias abas de ticket, esperar a
+      // trava de outra instância deixava esta pendurada por tempo indeterminado.
+      const result = await navigator.locks.request(`wa-merge:${account}`, { ifAvailable: true }, async lock => {
+        if (!lock) return { skipped: true };
         const current = await client.get(["ticket.id", "ticket.requester.id"]);
         if (current["ticket.id"] !== values.ticket.id || current["ticket.requester.id"] !== values.ticket.requester?.id)
           throw new Error("O solicitante mudou. Reabra o ticket para verificar os contatos.");
@@ -120,18 +126,22 @@ function App() {
           localStorage.setItem(storageKey, new Date().toISOString());
         }});
       });
+      // Outra aba já está verificando: tenta de novo no próximo carregamento.
+      if (result?.skipped) autoChecked.current.delete(key);
       // Só a fusão de fato executada vira aviso: o resultado "nada a fundir" é ruído.
-      if (autoTicket.current === key && result.merged) setNotice(result.message);
+      else if (autoTicket.current === key && result.merged) setNotice(result.message);
     } catch (e) {
       if (autoTicket.current === key) setError(e.message || "Não foi possível verificar os duplicados. Use a aba Contatos.");
     } finally {
-      operation.current = false;
+      autoRunning.current = false;
       setAutoBusy(false);
     }
     return loaded;
   }
   async function run(action) {
-    if (operation.current) return;
+    // Nunca falhar em silêncio: sem isso, um clique durante outra operação não
+    // produzia nem resultado nem mensagem.
+    if (operation.current) { setError("Há uma operação em andamento. Aguarde e tente novamente."); return; }
     operation.current = true;
     setBusy(true);
     setError("");
