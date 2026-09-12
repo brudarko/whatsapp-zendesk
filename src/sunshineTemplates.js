@@ -13,15 +13,34 @@ export async function whatsappTemplates(sunshine, scope, input) {
     if (!result.messageTemplate?.id) throw new Error("Criação não confirmada. Confira os templates antes de tentar novamente.");
     return result.messageTemplate;
   }
-  const data = [], seen = new Set();
+  const data = [], seen = new Set(), pages = [];
   let cursor = "";
   do {
     const result = await sunshine(path + (cursor ? `?after=${encodeURIComponent(cursor)}` : ""));
-    if (!Array.isArray(result.messageTemplates)) throw new Error("Não foi possível ler a lista de templates do WhatsApp.");
-    data.push(...result.messageTemplates);
+    const templates = result?.messageTemplates;
+    pages.push({
+      keys: result && typeof result === "object" ? Object.keys(result) : [],
+      count: Array.isArray(templates) ? templates.length : null,
+      after: result?.after || null,
+    });
+    if (!Array.isArray(templates)) {
+      const error = new Error("Não foi possível ler a lista de templates do WhatsApp.");
+      error.probe = { ...(sunshine.last || {}), pages, path };
+      throw error;
+    }
+    data.push(...templates);
     cursor = result.after;
     if (cursor && (typeof cursor !== "string" || seen.has(cursor))) throw new Error("Paginação de templates inválida.");
     if (cursor) seen.add(cursor);
   } while (cursor);
-  return { data };
+  return {
+    data,
+    probe: {
+      ...(sunshine.last || {}),
+      path,
+      pages,
+      total: data.length,
+      names: data.map(t => t.name).filter(Boolean).slice(0, 12),
+    },
+  };
 }

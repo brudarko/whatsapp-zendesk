@@ -1,4 +1,5 @@
 import { templateTypes, variables } from './templateTypes.js';
+import { shorthand, catalogMatch, templateLanguage } from './domain.js';
 const required = (v,max,label) => {
   if(typeof v!=='string'||!v.trim()||v.length>max)throw Error(`${label}: preencha até ${max} caracteres.`);
   return v;
@@ -114,19 +115,30 @@ export function metaTemplate(input){
   return result;
 }
 
+function isFlowButton(button) {
+  return ["FLOW"].includes(String(button?.type ?? button?.sub_type ?? button?.subType ?? "").toUpperCase());
+}
+
+function flowButtons(component) {
+  const buttons = component?.buttons ?? [];
+  return buttons.length > 0 && buttons.every(isFlowButton);
+}
+
 // Catálogo de envio: um template da Meta vira macro do Zendesk. Quem chama decide
 // se a macro entra ativa (só templates aprovados podem ser enviados). O envio
-// só entende corpo de texto e cabeçalho de texto (ver parseTemplate em outbound.js),
-// então formatos com mídia, botões ou carrossel ficam fora até o transporte cobri-los.
+// cobre corpo/cabeçalho de texto e um botão Flow; mídia, outros botões e carrossel
+// ficam fora até o transporte cobri-los.
 export function catalogEntry(item) {
   const components = Array.isArray(item?.components) ? item.components : [];
   const type = c => String(c?.type ?? '').toUpperCase();
   const body = components.find(c => type(c) === 'BODY');
   const header = components.find(c => type(c) === 'HEADER');
+  const buttons = components.find(c => type(c) === 'BUTTONS');
   if (!body?.text) throw Error('Este template não tem corpo de texto para enviar.');
   if (header && String(header.format ?? '').toUpperCase() !== 'TEXT')
     throw Error('Cabeçalhos de mídia ainda não podem ser enviados pelo catálogo.');
-  if (components.some(c => ['BUTTONS', 'CAROUSEL', 'LIMITED_TIME_OFFER'].includes(type(c))))
+  if (components.some(c => ['CAROUSEL', 'LIMITED_TIME_OFFER'].includes(type(c)))
+      || (buttons && !flowButtons(buttons)))
     throw Error('Templates com botões ou carrossel ainda não podem ser enviados pelo catálogo.');
   const examples = component => {
     const example = component?.example ?? {};
@@ -140,8 +152,8 @@ export function catalogEntry(item) {
     const ids = variables(text);
     return ids.map((id, i) => {
       const value = values[i];
-      if (typeof value !== 'string' || !value.trim()) throw Error(`Preencha um valor de exemplo para {{${id}}} antes de publicar.`);
-      return value;
+      if (typeof value === 'string' && value.trim()) return value;
+      return /^[1-9]\d*$/.test(id) ? `exemplo${id}` : id;
     });
   };
   const parameters = fill(body.text, examples(body));
@@ -149,10 +161,45 @@ export function catalogEntry(item) {
   const resolve = (text, values) => variables(text).reduce((out, id, i) => out.split(`{{${id}}}`).join(values[i]), text);
   return {
     name: item.name,
-    language: item.language,
+    language: templateLanguage(item),
     fallback: resolve(body.text, parameters),
     parameters,
     headerType: header ? 'text' : '',
     headerValue: header ? resolve(header.text ?? '', headerValues) : '',
+    flow: !!buttons,
   };
+}
+
+// Envio ativo só lê macros WhatsApp::. Templates aprovados e enviáveis viram
+// ações de criar/ativar essa macro; mídia, botões que não são Flow e pendentes ficam de fora.
+export function sendCatalogActions(items = [], entries = []) {
+  const actions = [];
+  const taken = new Set((entries ?? []).map(e => e.label));
+  for (const item of items ?? []) {
+    if (String(item?.status ?? '').toUpperCase() !== 'APPROVED') continue;
+    let text;
+    try { text = shorthand(catalogEntry(item)); }
+    catch { continue; }
+    const entry = catalogMatch(entries, item);
+    if (entry) {
+      const needsFlow = /flow=\[\[1\]\]/.test(text) && !entry.flow;
+      if (!entry.active || needsFlow) actions.push({
+        type: 'activate', macroId: entry.id, title: entry.label, text,
+        groupIds: entry.groupIds ?? [], description: entry.useCase ?? '',
+      });
+      continue;
+    }
+    let title = item.name;
+    if (!title || taken.has(title)) title = `${item.name} · ${item.language}`;
+    taken.add(title);
+    actions.push({ type: 'create', title, text });
+  }
+  return actions;
+}
+
+export function catalogSendLabel(item, entry) {
+  try { shorthand(catalogEntry(item)); }
+  catch { return 'Não enviável'; }
+  if (String(item?.status ?? '').toUpperCase() !== 'APPROVED') return 'Aguardando Meta';
+  return entry?.active ? 'No envio' : 'Publicar';
 }

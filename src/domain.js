@@ -59,6 +59,7 @@ export function shorthand({
   parameters = [],
   headerType = "",
   headerValue = "",
+  flow = false,
 }) {
   if (!/^[a-z0-9_]{1,512}$/.test(name))
     throw new Error(
@@ -88,6 +89,7 @@ export function shorthand({
     pairs.push(pair(`header_${headerType}`, headerValue));
   }
   parameters.forEach((p) => pairs.push(pair("body_text", p)));
+  if (flow) pairs.push(pair("flow", "1"));
   return `&(( ${pairs.join(" ")} ))&`;
 }
 
@@ -127,10 +129,19 @@ export function catalogMacro(macro) {
     active: macro.active === true,
     template: /template=\[\[([^\]]+)\]\]/.exec(text)?.[1] ?? "",
     language: /language=\[\[([^\]]+)\]\]/.exec(text)?.[1] ?? "",
+    flow: /flow=\[\[1\]\]/.test(text),
   };
+}
+
+export function templateLanguage(item) {
+  const lang = item?.language;
+  if (typeof lang === "string") return lang;
+  if (lang && typeof lang.code === "string") return lang.code;
+  return "";
 }
 
 export function catalogMatch(entries, item) {
   if (!item?.name) return null;
-  return (entries ?? []).find((e) => e.template === item.name && e.language === item.language) ?? null;
+  const language = templateLanguage(item);
+  return (entries ?? []).find((e) => e.template === item.name && e.language === language) ?? null;
 }

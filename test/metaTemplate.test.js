@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { metaTemplate, catalogEntry } from "../src/metaTemplate.js";
+import { metaTemplate, catalogEntry, sendCatalogActions, catalogSendLabel } from "../src/metaTemplate.js";
 import { whatsappTemplates } from "../src/sunshineTemplates.js";
 test("Meta template builds text examples and rejects incomplete or unsupported submissions",()=>{
   const input={name:"agendamento",language:"pt_BR",category:"UTILITY",body:"Olá {{1}}",examples:["Ana"]};
@@ -113,8 +113,9 @@ test("catalog entry turns an approved template into a sendable macro text",()=>{
   // Status não invalida a entrada: quem publica decide se a macro entra ativa.
   assert.equal(catalogEntry({...item,status:"PENDING"}).name,"aviso_atraso");
   for(const change of [{components:[{type:"BODY",text:"oi"},{type:"BUTTONS",buttons:[]}]},
-    {components:[{type:"HEADER",format:"IMAGE"},{type:"BODY",text:"oi"}]},{components:[{type:"HEADER",format:"TEXT",text:"oi"}]},
-    {components:[{type:"BODY",text:"Olá {{1}}"}]}])assert.throws(()=>catalogEntry({...item,...change}));
+    {components:[{type:"HEADER",format:"IMAGE"},{type:"BODY",text:"oi"}]},{components:[{type:"HEADER",format:"TEXT",text:"oi"}]}])
+    assert.throws(()=>catalogEntry({...item,...change}));
+  assert.deepEqual(catalogEntry({name:"sem_exemplo",language:{code:"pt_BR"},components:[{type:"BODY",text:"Olá {{1}}"}]}).parameters,["exemplo1"]);
   // Nome de exibição e caso de uso vêm do título e da descrição da macro.
   const macro=macroTemplate({title:"WhatsApp::Aviso de atraso",description:"Boleto vencido há mais de um dia.",active:true,
     actions:[{field:"comment_value",value:shorthand(entry)}],restriction:{type:"Group",ids:[7]}});
@@ -125,8 +126,43 @@ test("catalog entry turns an approved template into a sendable macro text",()=>{
   // Painel do administrador: macro inativa continua visível e casa com o template da Meta.
   const pending={id:9,title:"WhatsApp::Aviso de atraso",description:"d",active:false,actions:[{field:"comment_value",value:shorthand(entry)}]};
   assert.equal(macroTemplate(pending),null);
-  assert.deepEqual(catalogMacro(pending),{id:9,label:"Aviso de atraso",useCase:"d",groupIds:[],active:false,template:"aviso_atraso",language:"pt_BR"});
+  assert.deepEqual(catalogMacro(pending),{id:9,label:"Aviso de atraso",useCase:"d",groupIds:[],active:false,template:"aviso_atraso",language:"pt_BR",flow:false});
   assert.equal(catalogMatch([catalogMacro(pending)],item).id,9);
   assert.equal(catalogMatch([catalogMacro(pending)],{...item,language:"en_US"}),null);
   assert.equal(catalogMacro({title:"Outra macro",active:true,actions:[]}),null);
+});
+
+test("approved sendable templates become catalog create or activate actions", () => {
+  const sendable = {name:"agendamento",language:"pt_BR",status:"APPROVED",components:[{type:"BODY",text:"Olá {{1}}",example:{body_text:[["Ana"]]}}]};
+  const buttons = {name:"promo",language:"pt_BR",status:"APPROVED",components:[{type:"BODY",text:"Oi"},{type:"BUTTONS",buttons:[]}]};
+  const pending = {name:"fila",language:"pt_BR",status:"PENDING",components:[{type:"BODY",text:"Oi"}]};
+  const inactive = {id:9,label:"Agendamento",template:"agendamento",language:"pt_BR",active:false,groupIds:[3],useCase:"d"};
+  const created = sendCatalogActions([sendable, buttons, pending], []);
+  assert.equal(created.length, 1);
+  assert.equal(created[0].type, "create");
+  assert.equal(created[0].title, "agendamento");
+  assert.match(created[0].text, /template=\[\[agendamento\]\]/);
+  const activated = sendCatalogActions([sendable], [inactive]);
+  assert.deepEqual(activated, [{ type: "activate", macroId: 9, title: "Agendamento", text: created[0].text, groupIds: [3], description: "d" }]);
+  assert.equal(catalogSendLabel(sendable, null), "Publicar");
+  assert.equal(catalogSendLabel(sendable, { ...inactive, active: true }), "No envio");
+  assert.equal(catalogSendLabel(buttons, null), "Não enviável");
+  const flow = {name:"pesquisa",language:"pt_BR",status:"APPROVED",components:[
+    {type:"BODY",text:"Avalie o atendimento {{1}}.",example:{body_text:[["hoje"]]}},
+    {type:"BUTTONS",buttons:[{type:"FLOW",text:"Abrir",flow_id:"123"}]},
+  ]};
+  const flowActions = sendCatalogActions([flow], []);
+  assert.equal(flowActions.length, 1);
+  assert.match(flowActions[0].text, /flow=\[\[1\]\]/);
+  assert.equal(catalogSendLabel(flow, null), "Publicar");
+  const sent = parseTemplate(shorthand(catalogEntry(flow)), ["hoje"]);
+  assert.deepEqual(sent.message.template.components.at(-1), {
+    type: "button", sub_type: "flow", index: "0",
+    parameters: [{ type: "action", action: { flow_token: "zendesk" } }],
+  });
+  const stale = {id:4,label:"pesquisa",template:"pesquisa",language:"pt_BR",active:true,flow:false,groupIds:[],useCase:""};
+  const updated = sendCatalogActions([flow], [stale]);
+  assert.equal(updated[0].type, "activate");
+  assert.equal(updated[0].macroId, 4);
+  assert.match(updated[0].text, /flow=\[\[1\]\]/);
 });

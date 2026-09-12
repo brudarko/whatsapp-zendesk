@@ -33,6 +33,7 @@
   "version": "0.1.0",
   "frameworkVersion": "2.0",
   "domainWhitelist": [
+    "apps.portta.com.br",
     "{{setting.outbound_service_host}}",
     "*.zendesk.com"
   ],
@@ -51,6 +52,7 @@
       "name": "sunshine_secret",
       "type": "text",
       "secure": true,
+      "scopes": ["basic_auth_password"],
       "required": true
     },
     {
@@ -65,6 +67,12 @@
     },
     {
       "name": "auto_merge_contacts",
+      "type": "checkbox",
+      "default": false,
+      "required": false
+    },
+    {
+      "name": "auto_merge_tickets",
       "type": "checkbox",
       "default": false,
       "required": false

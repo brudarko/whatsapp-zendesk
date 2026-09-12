@@ -21,10 +21,13 @@ export function resolveWhatsApp(contact, clients, scope) {
     .filter((c) => c.identifier);
   const base = { supportUserId: contact.user.id, messagingUserIds: [...linked],
     name: contact.user.name || "Contato", phone: contact.user.phone || null, scope: { ...scope } };
-  if (!scope.appId || !scope.integrationId || !scope.portfolioId)
-    return { ...base, state: "unconfigured", reason: "Configure a integração WhatsApp e seu portfólio." };
+  if (!scope.appId || !scope.integrationId)
+    return { ...base, state: "unconfigured", reason: "Configure a integração WhatsApp." };
+  if (matches.some((c) => c.status === "blocked"))
+    return { ...base, state: "blocked", reason: "O contato bloqueou esta empresa no WhatsApp." };
   if (!destinations.length) return { ...base, state: "unresolved", reason: matches.some((c) => c.status === "pending")
-    ? "Identidade aguardando confirmação da Meta." : "Nenhum destinatário WhatsApp confirmado nesta integração." };
+    ? "Identidade aguardando confirmação da Meta." : "Nenhum destinatário WhatsApp confirmado nesta integração.",
+    pending: matches.some((c) => c.status === "pending") };
   const unique = new Set(destinations.map((d) => `${d.identifier.type}:${d.identifier.value}`));
   if (unique.size !== 1) return { ...base, state: "ambiguous", reason: "Há mais de um destinatário. Revise os vínculos antes de enviar." };
   const { client, identifier } = destinations[0];
@@ -37,9 +40,11 @@ export function resolveWhatsApp(contact, clients, scope) {
 }
 
 export function notificationDestination(identity, scope) {
+  const keys = ["appId", "integrationId"];
+  if (scope.portfolioId && identity.scope?.portfolioId) keys.push("portfolioId");
   if (identity.state !== "resolved" || !identity.identifier ||
-      ["appId", "portfolioId", "integrationId"].some((k) => !scope[k] || scope[k] !== identity.scope[k]))
-    throw new Error("Destinatário não confirmado para esta integração e portfólio.");
+      keys.some((k) => !scope[k] || scope[k] !== identity.scope[k]))
+    throw new Error(identity.reason || "Destinatário não confirmado para esta integração.");
   return { integrationId: scope.integrationId, destinationId: identity.identifier.value };
 }
 

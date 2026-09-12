@@ -1,0 +1,19 @@
+{
+  "name": "garden-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server exposing the Zendesk Garden react-components catalog (props, exports, usage) for building Zendesk apps.",
+  "bin": {
+    "garden-mcp": "server.mjs"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "build:catalog": "node scripts/build-catalog.mjs",
+    "inspect": "npx @modelcontextprotocol/inspector node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.23.8"
+  }
+}

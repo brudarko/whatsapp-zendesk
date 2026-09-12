@@ -1,8 +1,12 @@
-import { RECORD_PREFIX, parseTemplate, sendRecord, destinationPhone } from "./outbound.js";
+import { RECORD_PREFIX, parseTemplate, sendRecord, previewSendRecord, destinationPhone } from "./outbound.js";
 import { macroTemplate, catalogMacro, safeId, brazilianPhoneCandidates } from "./domain.js";
-import { contactPhones, mergeReview, contactFingerprint, automaticMergeReason } from "./merge.js";
+import { sendCatalogActions } from "./metaTemplate.js";
+import { contactPhones, mergeReview, contactFingerprint, automaticMergeReason, resolveTicketMerge, isRecordTicket, isConversationTicket, pickMergeTarget } from "./merge.js";
+import { classifySendConflict } from "./sendConflict.js";
+import { sendStatusLabel, sendEventLine } from "./sendStatus.js";
+import { messagingIds, readWhatsAppIdentity } from "./identity.js";
 import { isLocalApp, localRequest } from "./localConnection.js";
-import { sunshineConfig, sunshineIssues, sunshineRequest, whatsappIntegration } from "./sunshine.js";
+import { sunshineConfig, sunshineIssues, sunshineRequest, whatsappIntegration, describeZafError } from "./sunshine.js";
 import { sunshineWindow } from "./sunshineWindow.js";
 import { readReceipt } from "./readReceipt.js";
 import { whatsappTemplates } from "./sunshineTemplates.js";
@@ -49,6 +53,19 @@ export function zendesk(client) {
       throw new Error("O Zendesk retornou um perfil diferente do solicitado.");
     return { user, identities };
   }
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+  async function waitForConversationTicket(userId, excludeId, { attempts = 3, delayMs = 300 } = {}) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const tickets = (await pages(`/api/v2/users/${safeId(userId)}/tickets/requested.json`, "tickets"))
+          .filter(ticket => String(ticket.id) !== String(excludeId || ""));
+        const conversation = pickMergeTarget(tickets);
+        if (conversation) return safeId(conversation.id);
+      } catch { /* Messaging can create the native ticket after the notification. */ }
+      if (i < attempts - 1 && delayMs) await sleep(delayMs);
+    }
+    return null;
+  }
   const api = {
     contact,
     request,
@@ -58,13 +75,63 @@ export function zendesk(client) {
       const { settings = {} } = await client.metadata();
       return settings.auto_merge_contacts === true;
     },
+    async autoMergeTicketsEnabled() {
+      const { settings = {} } = await client.metadata();
+      return settings.auto_merge_tickets === true;
+    },
+    async currentAgentId() {
+      const { currentUser } = await client.get("currentUser");
+      const id = Number(currentUser?.id);
+      if (!id) throw new Error("Não foi possível identificar o atendente.");
+      return id;
+    },
+    async findSendConflict(userId) {
+      const tickets = await pages(`/api/v2/users/${safeId(userId)}/tickets/requested.json`, "tickets");
+      const ticket = pickMergeTarget(tickets);
+      if (!ticket) return classifySendConflict(tickets);
+      let window = { state: "unknown" };
+      try { window = await api.serviceWindow(ticket.id); }
+      catch { window = { state: "unknown" }; }
+      return { ...classifySendConflict(tickets, window), window };
+    },
+    async assignToCurrentUser(ticketId) {
+      const id = safeId(ticketId);
+      const assigneeId = await api.currentAgentId();
+      await request(`/api/v2/tickets/${id}.json`, "PUT", {
+        ticket: { assignee_id: assigneeId, status: "open" },
+      });
+      return { ticketId: id, assigneeId };
+    },
+    async closeConversationTicket(ticketId) {
+      const id = safeId(ticketId);
+      try {
+        await request(`/api/v2/tickets/${id}.json`, "PUT", { ticket: { status: "closed" } });
+      } catch {
+        try {
+          await request(`/api/v2/tickets/${id}.json`, "PUT", { ticket: { status: "solved" } });
+        } catch {
+          throw new Error("Não foi possível fechar o ticket atual.");
+        }
+      }
+      return { ticketId: id };
+    },
     async load(location) {
       const globals = await client.get("currentUser");
       const currentUser = globals.currentUser;
-      const [groups, macros] = await Promise.all([
+      const [groups, initialMacros] = await Promise.all([
         pages("/api/v2/groups.json", "groups"),
         pages("/api/v2/macros.json?active=true&only_viewable=true", "macros"),
       ]);
+      let macros = initialMacros;
+      if (currentUser.role === "admin" && ["top_bar", "user_sidebar", "nav_bar"].includes(location)) {
+        try {
+          const list = await api.metaTemplates();
+          if (sendCatalogActions(list.data, macros.map(catalogMacro).filter(Boolean)).length) {
+            await api.syncSendCatalog(list.data);
+            macros = await pages("/api/v2/macros.json?active=true&only_viewable=true", "macros");
+          }
+        } catch { /* envio segue com as macros já carregadas */ }
+      }
       let customer = null;
       if (location === "user_sidebar") {
         const values = await client.get("user");
@@ -76,6 +143,7 @@ export function zendesk(client) {
         const values = await client.get(["ticket", "ticket.conversation"]);
         ticket = values.ticket;
         conversation = values["ticket.conversation"] ?? [];
+        if (!customer && ticket?.requester?.id) customer = (await contact(ticket.requester.id)).user;
       }
       return {
         currentUser,
@@ -107,8 +175,12 @@ export function zendesk(client) {
       }
       const { settings = {} } = await client.metadata();
       const host = settings.outbound_service_host;
-      return typeof host === "string" && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(host)
-        ? { host } : null;
+      if (typeof host === "string" && /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i.test(host)
+          && host !== "apps.portta.com.br")
+        return { host };
+      if (sunshineConfig(settings) || host === "apps.portta.com.br")
+        return { host: "apps.portta.com.br", portta: true };
+      return null;
     },
     // Credencial da instalação: o proxy do Zendesk assina a chamada ao Sunshine e o
     // segredo não passa pelo browser. Sem as settings, cai no serviço local (dev).
@@ -151,6 +223,11 @@ export function zendesk(client) {
       if (!config?.localToken) throw Error("Serviço local indisponível.");
       return localRequest("/read", config.localToken, {ticketId: id});
     },
+    async contactWindow(userId) {
+      const access = await api.sunshineScope();
+      if (!access) throw Error("Informe a credencial da Conversations API nas configurações do app.");
+      return sunshineWindow(await contact(userId), access.scope, access.request);
+    },
     async serviceWindow(ticketId) {
       const id = safeId(ticketId);
       const access = await api.sunshineScope();
@@ -172,7 +249,18 @@ export function zendesk(client) {
         // não passa pela credencial da instalação: por aqui, só o que o Sunshine aceita.
         if (action === "capabilities") return { advanced: false, media: false };
         if (action === "media") throw new Error("O envio de arquivos de exemplo precisa do gerenciamento avançado na Meta.");
-        return whatsappTemplates(access.request, access.scope, input);
+        const scopeProbe = { appId: access.scope.appId, integrationId: access.scope.integrationId, keyId: access.config.keyId };
+        try {
+          const result = await whatsappTemplates(access.request, access.scope, input);
+          if (result && typeof result === "object" && Array.isArray(result.data)) {
+            result.probe = { ...(result.probe || {}), ...scopeProbe };
+          }
+          return result;
+        } catch (error) {
+          const wrapped = error instanceof Error ? error : new Error(describeZafError(error));
+          wrapped.probe = { ...(error?.probe || {}), ...scopeProbe };
+          throw wrapped;
+        }
       }
       const config = await api.outboundConfig();
       if (!config?.localToken) throw new Error("Informe a credencial da Conversations API nas configurações do app para gerenciar os templates do seu canal WhatsApp.");
@@ -187,8 +275,16 @@ export function zendesk(client) {
       return localRequest(`/meta/${action}`, config.localToken, action === "status" ? undefined : input || {});
     },
     async sendActive(input, location) {
+      const intent = input.intent || "send";
+      if (!["send", "close_and_new", "merge_into_new"].includes(intent))
+        throw new Error("Ação de envio inválida.");
       const config = await api.outboundConfig();
       if (!config) throw new Error("Configure a conexão do serviço de envio antes de continuar.");
+      let portta;
+      if (config.portta) {
+        portta = await api.sunshineScope();
+        if (!portta?.scope?.integrationId) throw new Error("Informe a credencial da Conversations API nas configurações do app.");
+      }
       // Validate the template before creating a new customer.
       const fresh = macroTemplate((await request(`/api/v2/macros/${safeId(input.macroId)}.json`)).macro ?? {});
       if (!fresh) throw new Error("Template removido ou desativado.");
@@ -205,32 +301,191 @@ export function zendesk(client) {
           userId = safeId(created.user?.id);
         } catch { throw new Error("Cadastro não confirmado. Pesquise o número antes de tentar novamente; nenhuma mensagem foi enviada."); }
       }
+      if (intent === "close_and_new") {
+        if (!input.closeTicketId) throw new Error("Informe o ticket a fechar.");
+        await api.closeConversationTicket(input.closeTicketId);
+      }
       const record = sendRecord({ ...input, userId });
       await api.assertContactContext(record.userId, location);
       const profile = await contact(record.userId);
       if (profile.user.role !== "end-user" || profile.user.suspended) throw new Error("O contato não está disponível para envio.");
+      const identity = await api.whatsappIdentity(record.userId).catch(() => null);
+      if (identity?.state === "blocked") throw new Error(identity.reason);
       if (location === "top_bar" && profile.user.phone) {
         try { record.phone = destinationPhone(profile.user.phone); } catch { /* A linked BSUID can still resolve a contact with an unusable phone. */ }
       }
       record.templateText = fresh.text;
       await api.assertContactContext(record.userId, location);
+      let assigneeId = null;
+      try { assigneeId = await api.currentAgentId(); } catch { /* Ticket is assigned after send when the agent id is available. */ }
       let created;
       try {
         created = await request("/api/v2/tickets.json", "POST", { ticket: {
           requester_id: Number(record.userId), subject: `WhatsApp ativo · ${fresh.label}`,
-          tags: ["whatsapp_active_message"], comment: { public: false, body: RECORD_PREFIX + JSON.stringify(record) },
+          tags: ["whatsapp_active_message"],
+          ...(assigneeId ? { assignee_id: assigneeId } : {}),
+          comment: { public: false, body: RECORD_PREFIX + JSON.stringify(record) },
         } });
       } catch { throw new Error("Criação do ticket não confirmada. Confira o histórico antes de tentar novamente; nenhuma chamada de envio foi feita pelo app."); }
       const ticketId = safeId(created.ticket?.id);
+      if (intent === "merge_into_new") {
+        if (!input.mergeTicketId) throw new Error("Informe o ticket a unir.");
+        try {
+          await request(`/api/v2/tickets/${ticketId}/merge`, "POST", {
+            ids: [Number(safeId(input.mergeTicketId))],
+            target_comment: "Conversa WhatsApp unida a este envio ativo.",
+            source_comment: "Unido ao novo ticket de envio WhatsApp.",
+          });
+        } catch {
+          throw new Error("O Zendesk recusou a união dos tickets. Una manualmente ou feche o ticket atual e envie de novo.");
+        }
+      }
       try {
-        const result = config.localToken ? await localRequest("/send", config.localToken, { ticketId }) : await client.request({ url: `https://${config.host}/send`, type: "POST", dataType: "json",
+        const result = config.localToken ? await localRequest("/send", config.localToken, { ticketId })
+          : config.portta ? await client.request({
+              url: `https://apps.portta.com.br/whatsapp/send/${(await client.context()).account?.subdomain}`,
+              type: "POST", dataType: "json", contentType: "application/json",
+              data: JSON.stringify({
+                ticketId,
+                appId: portta.scope.appId,
+                integrationId: portta.scope.integrationId,
+                ...(portta.scope.portfolioId ? { portfolioId: portta.scope.portfolioId } : {}),
+              }),
+              secure: true, cors: false, autoRetry: false,
+              headers: { Authorization: "Basic {{basic_auth.token}}" },
+              basic_auth: { username: portta.config.keyId, password: "{{setting.sunshine_secret}}" },
+            })
+          : await client.request({ url: `https://${config.host}/send`, type: "POST", dataType: "json",
           contentType: "application/json", data: JSON.stringify({ ticketId }), secure: true, cors: false, autoRetry: false,
           headers: { Authorization: "Bearer {{setting.outbound_service_token}}" } });
         if (!["accepted", "unknown"].includes(result?.state)) throw new Error("Resposta inesperada");
-        return { ...result, ticketId };
-      } catch {
-        return { ticketId, state: "unknown", message: "Ticket registrado; envio não confirmado. Confira o resultado antes de reenviar." };
+        const sent = { ...result, ticketId };
+        let surviving = ticketId;
+        if (intent === "merge_into_new") {
+          sent.merge = { merged: true, ticketId, intoNew: true };
+        } else {
+          try {
+            const merge = await api.mergeRecordTickets(record.userId, {
+              auto: await api.autoMergeTicketsEnabled(),
+              preferSource: ticketId,
+              excludeTicketId: intent === "close_and_new" ? input.closeTicketId : undefined,
+            });
+            if (merge.merged) surviving = merge.ticketId;
+            else if (merge.target) surviving = safeId(merge.target.id);
+            if (merge.merged || merge.offer) sent.merge = merge;
+          } catch (error) {
+            sent.warning = error.message || "Não foi possível unir os tickets.";
+          }
+          if (String(surviving) === String(ticketId)) {
+            const found = await waitForConversationTicket(record.userId, intent === "close_and_new" ? input.closeTicketId : undefined, {
+              attempts: 3,
+              delayMs: Number.isFinite(input.assignWaitMs) ? input.assignWaitMs : 300,
+            });
+            if (found) surviving = found;
+          }
+        }
+        try {
+          await api.assignToCurrentUser(surviving);
+          return { ...sent, ticketId: surviving, assigned: true };
+        } catch (error) {
+          return { ...sent, ticketId: surviving, warning: sent.warning || error.message || "Não foi possível atribuir o ticket." };
+        }
+      } catch (error) {
+        const detail = describeZafError(error);
+        return { ticketId, state: "unknown", message: /Ticket registrado/.test(detail) ? detail : `Ticket registrado; envio não confirmado (${detail}). Confira o resultado antes de reenviar.` };
       }
+    },
+    async sendStatuses(ticketIds) {
+      const ids = [...new Set((ticketIds ?? []).map(id => safeId(id)))];
+      if (!ids.length) return { sends: {} };
+      const config = await api.outboundConfig();
+      if (config?.localToken) return localRequest("/sends", config.localToken, { ticketIds: ids });
+      if (!config?.portta) return { sends: {} };
+      const portta = await api.sunshineScope();
+      if (!portta) return { sends: {} };
+      try {
+        const payload = await client.request({
+          url: `https://apps.portta.com.br/whatsapp/sends/${(await client.context()).account?.subdomain}?ticketIds=${ids.join(",")}`,
+          type: "GET", dataType: "json", secure: true, cors: false, autoRetry: true,
+          headers: { Authorization: "Basic {{basic_auth.token}}" },
+          basic_auth: { username: portta.config.keyId, password: "{{setting.sunshine_secret}}" },
+        });
+        return { sends: payload.sends || {} };
+      } catch { return { sends: {} }; }
+    },
+    async whatsappIdentity(userId) {
+      const access = await api.sunshineScope();
+      if (!access) throw new Error("Informe a credencial da Conversations API nas configurações do app.");
+      return readWhatsAppIdentity(await contact(userId), access.scope, access.request);
+    },
+    async linkWhatsApp(userId, phone) {
+      const access = await api.sunshineScope();
+      if (!access) throw new Error("Informe a credencial da Conversations API nas configurações do app.");
+      const profile = await contact(userId);
+      const ids = messagingIds(profile);
+      if (!ids.length) throw new Error("O contato ainda não tem identidade de messaging. Envie um template ou aguarde a primeira mensagem.");
+      const destination = destinationPhone(phone || profile.user.phone);
+      return access.request(`/v2/apps/${access.scope.appId}/users/${ids[0]}/clients`, "POST", {
+        matchCriteria: { type: "whatsapp", integrationId: access.scope.integrationId, primary: destination },
+        confirmation: { type: "immediate" },
+        message: { type: "text", text: "Confirme este número para continuar no WhatsApp." },
+      });
+    },
+    async mergeSunshineUsers(survivingId, discardedId) {
+      const access = await api.sunshineScope();
+      if (!access) throw new Error("Informe a credencial da Conversations API nas configurações do app.");
+      const segment = id => {
+        if (!/^[a-f0-9]{24}$/i.test(String(id || ""))) throw new Error("ID Sunshine inválido.");
+        return id;
+      };
+      return access.request(`/v2/apps/${access.scope.appId}/users/${segment(survivingId)}/merge`, "POST", {
+        userId: segment(discardedId),
+      });
+    },
+    async sendSession({ userId, ticketId, conversationId, content, quotedMessageId }) {
+      const config = await api.outboundConfig();
+      if (!config?.portta) throw new Error("Configure o serviço de envio para mensagens da janela de 24h.");
+      const portta = await api.sunshineScope();
+      if (!portta?.scope?.integrationId) throw new Error("Informe a credencial da Conversations API nas configurações do app.");
+      await api.assertContactContext(userId, ticketId ? "ticket_sidebar" : "user_sidebar");
+      const identity = await api.whatsappIdentity(userId).catch(() => null);
+      if (identity?.state === "blocked") throw new Error(identity.reason);
+      const payload = {
+        conversationId,
+        ticketId,
+        content,
+        quotedMessageId,
+        sunshineUserId: identity?.messagingUserId,
+        appId: portta.scope.appId,
+        integrationId: portta.scope.integrationId,
+        ...(portta.scope.portfolioId ? { portfolioId: portta.scope.portfolioId } : {}),
+      };
+      if (content.file) {
+        const uploaded = await client.request({
+          url: `https://apps.portta.com.br/whatsapp/attachments/${(await client.context()).account?.subdomain}`,
+          type: "POST", dataType: "json", contentType: "application/json",
+          data: JSON.stringify({
+            appId: portta.scope.appId,
+            integrationId: portta.scope.integrationId,
+            conversationId,
+            filename: content.file.name,
+            mediaType: content.file.type,
+            content: content.file.data,
+          }),
+          secure: true, cors: false, autoRetry: false,
+          headers: { Authorization: "Basic {{basic_auth.token}}" },
+          basic_auth: { username: portta.config.keyId, password: "{{setting.sunshine_secret}}" },
+        });
+        payload.content = { type: content.type, mediaUrl: uploaded.mediaUrl, altText: content.file.name };
+      }
+      return client.request({
+        url: `https://apps.portta.com.br/whatsapp/session/${(await client.context()).account?.subdomain}`,
+        type: "POST", dataType: "json", contentType: "application/json",
+        data: JSON.stringify(payload),
+        secure: true, cors: false, autoRetry: false,
+        headers: { Authorization: "Basic {{basic_auth.token}}" },
+        basic_auth: { username: portta.config.keyId, password: "{{setting.sunshine_secret}}" },
+      });
     },
     async searchCustomers(value, criterion = "name") {
       const text = String(value ?? "").trim();
@@ -246,22 +501,49 @@ export function zendesk(client) {
       const tickets = await pages(`/api/v2/users/${safeId(userId)}/tickets/requested.json`, "tickets");
       const messages = [], failures = [];
       for (const ticket of tickets) {
+        if (!isRecordTicket(ticket) || isConversationTicket(ticket)) continue;
         try {
           const comments = await pages(`/api/v2/tickets/${safeId(ticket.id)}/comments.json`, "comments");
-          for (const comment of comments) {
-            const isWhatsApp = comment.via?.channel === "whatsapp";
-            const isRecord = (ticket.tags ?? []).includes("whatsapp_active_message") && comment.public === false;
-            if (!isWhatsApp && !isRecord) continue;
-            messages.push({ ...comment, ticketId: ticket.id, subject: ticket.subject,
-              record: isRecord && !isWhatsApp,
-              // A ticket comment proves a record, not transport delivery or read status.
-              status: "Sem confirmação de entrega/leitura" });
-          }
+          const send = comments.find(comment => (comment.plain_body ?? comment.body ?? "").startsWith(RECORD_PREFIX));
+          if (!send) continue;
+          let record;
+          try { record = JSON.parse((send.plain_body ?? send.body).slice(RECORD_PREFIX.length)); }
+          catch { continue; }
+          if (![1, 2].includes(record?.version)) continue;
+          messages.push({
+            id: send.id, ticketId: ticket.id, created_at: send.created_at, subject: ticket.subject,
+            preview: previewSendRecord(record), record: true, status: "Sem confirmação de leitura",
+          });
         } catch { failures.push(ticket.id); }
       }
-      const unique = [...new Map(messages.map(m => [`${m.ticketId}:${m.id}`, m])).values()];
-      unique.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
-      return { messages: unique, ticketCount: tickets.length, failures };
+      messages.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
+      try {
+        const { sends = {} } = await api.sendStatuses([
+          ...messages.map(m => String(m.ticketId)),
+          ...tickets.map(ticket => String(ticket.id)),
+        ]);
+        for (const message of messages) {
+          const row = sends[String(message.ticketId)];
+          message.status = sendStatusLabel(row);
+          message.event = sendEventLine(row);
+        }
+        for (const [ticketId, row] of Object.entries(sends)) {
+          for (const session of row.sessions || []) {
+            messages.push({
+              id: session.sendId || session.notificationId || ticketId,
+              ticketId,
+              created_at: session.createdAt || new Date().toISOString(),
+              preview: session.kind === "session" ? "Mensagem da janela de 24h" : session.label,
+              record: false,
+              session: true,
+              status: sendStatusLabel(session),
+              event: sendEventLine(session),
+            });
+          }
+        }
+        messages.sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0));
+      } catch { /* keep the unconfirmed label when receipts are unavailable */ }
+      return { messages, ticketCount: tickets.length, failures };
     },
     async findDuplicates(requester) {
       const criteria = ["phone", "email", "name"];
@@ -364,6 +646,19 @@ export function zendesk(client) {
       ]);
       return [...active, ...inactive].map(catalogMacro).filter(Boolean);
     },
+    async syncSendCatalog(items) {
+      const entries = await api.catalogEntries();
+      for (const action of sendCatalogActions(items, entries)) {
+        await api.saveCatalogEntry({
+          macroId: action.macroId,
+          title: action.title,
+          text: action.text,
+          groupIds: action.groupIds ?? [],
+          description: action.description ?? "",
+          active: true,
+        });
+      }
+    },
     async saveCatalogEntry({ macroId, title, text, groupIds = [], description = "", active = false }) {
       const { currentUser } = await client.get("currentUser");
       if (currentUser.role !== "admin")
@@ -444,6 +739,35 @@ export function zendesk(client) {
       return { merged: true, message: result.verified
         ? `Fusão automática Support concluída. Perfil principal #${ids[0]}. Atualize o ticket para conferir o solicitante. Sunshine não foi fundido pelo app.`
         : "Fusão aceita; confira o perfil principal no Zendesk. A verificação posterior falhou." };
+    },
+    async findTicketMerge(ticketId) {
+      const { ticket } = await request(`/api/v2/tickets/${safeId(ticketId)}.json`);
+      if (!ticket?.requester_id) return { target: null, sources: [] };
+      const tickets = await pages(`/api/v2/users/${safeId(ticket.requester_id)}/tickets/requested.json`, "tickets");
+      return resolveTicketMerge(tickets, ticket.id);
+    },
+    async mergeRecordTickets(userId, { auto = false, preferSource, excludeTicketId } = {}) {
+      const tickets = (await pages(`/api/v2/users/${safeId(userId)}/tickets/requested.json`, "tickets"))
+        .filter(ticket => String(ticket.id) !== String(excludeTicketId || ""));
+      const plan = resolveTicketMerge(tickets, preferSource);
+      if (!plan.target || !plan.sources.length) return { merged: false, ...plan };
+      if (!auto) return { merged: false, offer: true, ...plan };
+      try {
+        await request(`/api/v2/tickets/${safeId(plan.target.id)}/merge`, "POST", {
+          ids: plan.sources.map(source => Number(source.id)),
+          target_comment: "Registro de envio WhatsApp unido a esta conversa.",
+          source_comment: "Unido à conversa nativa do WhatsApp.",
+        });
+      } catch {
+        throw new Error("O Zendesk recusou a união dos tickets. Una manualmente a conversa e o registro de envio.");
+      }
+      return { merged: true, ticketId: String(plan.target.id), target: plan.target, sources: plan.sources };
+    },
+    async autoMergeTicketsOnOpen(ticketId) {
+      if (!(await api.autoMergeTicketsEnabled())) return { merged: false };
+      const { ticket } = await request(`/api/v2/tickets/${safeId(ticketId)}.json`);
+      if (!ticket?.requester_id) return { merged: false };
+      return api.mergeRecordTickets(ticket.requester_id, { auto: true, preferSource: ticket.id });
     },
   };
   return api;

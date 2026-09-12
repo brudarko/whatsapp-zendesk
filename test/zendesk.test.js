@@ -49,3 +49,25 @@ test("catalog follows all offset pages and asks Zendesk for applicable macros", 
   assert.ok(calls.some((c) => c.includes("only_viewable=true")));
   assert.ok(calls.every((c) => c.startsWith("/api/v2/")));
 });
+
+test("syncSendCatalog creates an active macro for approved sendable templates", async () => {
+  const calls = [];
+  const item = { name: "agendamento", language: "pt_BR", status: "APPROVED", components: [{ type: "BODY", text: "Olá {{1}}", example: { body_text: [["Ana"]] } }] };
+  const api = zendesk({
+    get: async () => ({ currentUser: { role: "admin" } }),
+    request: async (options) => {
+      calls.push(options);
+      if (options.url?.includes("macros.json?active=")) return { macros: [] };
+      if (options.type === "POST") return { macro: { id: 1 } };
+      return { macros: [] };
+    },
+  });
+  await api.syncSendCatalog([item, { ...item, name: "promo", components: [{ type: "BODY", text: "Oi" }, { type: "BUTTONS", buttons: [] }] }]);
+  const create = calls.find((c) => c.type === "POST" && c.url === "/api/v2/macros.json");
+  assert.ok(create);
+  const body = JSON.parse(create.data);
+  assert.equal(body.macro.title, "WhatsApp::agendamento");
+  assert.equal(body.macro.active, true);
+  assert.match(body.macro.actions[0].value, /template=\[\[agendamento\]\]/);
+  assert.equal(calls.filter((c) => c.type === "POST").length, 1);
+});

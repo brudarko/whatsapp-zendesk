@@ -26,8 +26,14 @@ export async function sunshineWindow(contact, scope, request, now = Date.now()) 
   for (const id of conversations) await pages(`${root}/conversations/${id}/messages`, 'messages', 'before', items => {
     for (const m of items) if (m.author?.type === 'user' && users.includes(m.author.userId) && m.source?.type === 'whatsapp' && m.source.integrationId === scope.integrationId) {
       const timestamp = m.source.originalMessageTimestamp || m.received;
-      inbound.push({timestamp, channel:{name:'whatsapp'}, author:{role:'end-user'}});
+      inbound.push({timestamp, conversationId: id, channel:{name:'whatsapp'}, author:{role:'end-user'}});
     }
   });
-  return {...windowFromConversation(inbound, now), source:'sunshine'};
+  const latest = inbound.reduce((best, item) => {
+    const time = Date.parse(item.timestamp);
+    if (!Number.isFinite(time)) return best;
+    if (!best || time > best.time) return { time, conversationId: item.conversationId };
+    return best;
+  }, null);
+  return {...windowFromConversation(inbound, now), source:'sunshine', conversationId: latest?.conversationId || null};
 }

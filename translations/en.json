@@ -29,14 +29,29 @@
         "label": "Merge duplicate contacts automatically",
         "helpText": "Off by default. When on, opening a WhatsApp ticket merges a single proven duplicate without asking. Merging Support profiles cannot be undone."
       },
+      "auto_merge_tickets": {
+        "label": "Merge the send record into the WhatsApp conversation automatically",
+        "helpText": "Off by default. When on, the WhatsApp ativo ticket is merged into the native conversation for the same requester. Independent of contact merge."
+      },
       "outbound_service_host": {
-        "label": "Servidor de envio (domínio HTTPS)",
-        "helpText": "Opcional. Sem esta conexão, o histórico e a fusão continuam disponíveis."
+        "label": "Outbound service host (HTTPS domain)",
+        "helpText": "Optional. History and merge remain available without this connection."
       },
       "outbound_service_token": {
-        "label": "Credencial do serviço de envio",
-        "helpText": "Credencial privada do serviço hospedado pela sua equipe. Não é o token da API Zendesk."
+        "label": "Outbound service credential",
+        "helpText": "Private credential for the service hosted by your team. Not the Zendesk API token."
       }
+    },
+    "send_conflict": {
+      "assign_body": "Ticket #{id} is already open inside the 24-hour window. Assign the conversation to yourself instead of sending a template.",
+      "assign_action": "Assign to me",
+      "stale_body": "Ticket #{id} is still open, but the 24-hour window has ended. Close it and open a new ticket, or merge it into the new one that will be created.",
+      "close_and_new": "Close current and open new",
+      "merge_into_new": "Merge into the new ticket",
+      "cancel": "Cancel",
+      "assigned": "Ticket #{id} assigned to you.",
+      "sent_assigned": "Send requested and assigned to ticket #{id}. Delivery is not confirmed yet.",
+      "sent_merged_new": "Send requested and merged into ticket #{id}."
     }
   }
 }

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { zendesk } from "../src/zendesk.js";
-import { contactPhones, mergeReview } from "../src/merge.js";
+import { contactPhones, mergeReview, resolveTicketMerge, pickMergeTarget } from "../src/merge.js";
 
 function fixture() {
   const users = Object.fromEntries([11, 12].map((id) => [id, {
@@ -180,3 +180,51 @@ test("automatic merge stays off until the admin turns the setting on", async () 
   settings.auto_merge_contacts = true;
   assert.equal(await api.autoMergeEnabled(), true);
 });
+
+test("ticket merge keeps the native conversation and closes send records", () => {
+  const conversation = { id: 4, status: "open", via: { channel: "native_messaging" }, updated_at: "2026-09-11T20:00:00Z" };
+  const older = { id: 2, status: "open", via: { channel: "whatsapp" }, updated_at: "2026-09-10T20:00:00Z" };
+  const record = { id: 9, status: "open", tags: ["whatsapp_active_message"], via: { channel: "api" } };
+  const closed = { id: 8, status: "closed", tags: ["whatsapp_active_message"], via: { channel: "api" } };
+  assert.equal(pickMergeTarget([record, older, conversation]).id, 4);
+  const fromRecord = resolveTicketMerge([record, conversation, closed], 9);
+  assert.equal(fromRecord.target.id, 4);
+  assert.deepEqual(fromRecord.sources.map(t => t.id), [9]);
+  const fromConversation = resolveTicketMerge([record, conversation], 4);
+  assert.equal(fromConversation.target.id, 4);
+  assert.equal(fromConversation.sources[0].id, 9);
+  assert.deepEqual(resolveTicketMerge([record], 9), { target: null, sources: [] });
+});
+
+test("ticket auto-merge stays off until the admin turns the setting on", async () => {
+  const settings = {};
+  const api = zendesk({ metadata: async () => ({ settings }) });
+  assert.equal(await api.autoMergeTicketsEnabled(), false);
+  settings.auto_merge_tickets = true;
+  assert.equal(await api.autoMergeTicketsEnabled(), true);
+});
+
+test("mergeRecordTickets posts sources into the conversation when auto is on", async () => {
+  const calls = [];
+  const api = zendesk({
+    metadata: async () => ({ settings: { auto_merge_tickets: true } }),
+    request: async (options) => {
+      calls.push(options);
+      if (options.url.includes("requested")) return { tickets: [
+        { id: 4, status: "open", via: { channel: "whatsapp" }, updated_at: "2026-09-11T20:00:00Z" },
+        { id: 9, status: "open", tags: ["whatsapp_active_message"], via: { channel: "api" } },
+      ] };
+      if (options.url.includes("/tickets/9.json")) return { ticket: { id: 9, requester_id: 11 } };
+      return {};
+    },
+  });
+  const result = await api.mergeRecordTickets(11, { auto: true, preferSource: 9 });
+  assert.equal(result.merged, true);
+  assert.equal(result.ticketId, "4");
+  const merge = calls.find(c => c.type === "POST" && String(c.url).includes("/merge"));
+  assert.deepEqual(JSON.parse(merge.data).ids, [9]);
+  const offer = await api.mergeRecordTickets(11, { auto: false, preferSource: 9 });
+  assert.equal(offer.offer, true);
+  assert.equal(offer.merged, false);
+});
+

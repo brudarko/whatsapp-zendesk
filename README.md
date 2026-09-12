@@ -12,7 +12,9 @@ npm test
 npm run dev
 ```
 
-`npm run dev` usa `npm run build:dev`, que mantém o caminho do serviço local (`127.0.0.1:8787`). `npm run build`, usado por `validate`, `package` e pelo CI, define `LOCAL_SERVICE=false` e remove esse caminho do pacote publicado.
+`npm run dev` usa `npm run build:dev`, que mantém o caminho do serviço local (`127.0.0.1:8787`). Serve só para UI: o `zcli apps:server` **não interpola secure settings**, então templates e envio pelo Portta (Basic `sunshine_secret`) falham com 401. `npm run build`, usado por `validate`, `package`, `update` e pelo CI, define `LOCAL_SERVICE=false` e remove esse caminho do pacote publicado.
+
+Para atualizar o app privado sem apagar as settings, coloque só o `app_id` em `zcli.apps.config.json` e rode `npm run update`. Esse comando sobe o ZIP e **não** toca na instalação. `zcli apps:update` é o contrário: se o config tiver `parameters` vazios, ele grava isso em cima do App ID, Key ID, secret e portfólio. Na UI, depois do upload, não salve o formulário de settings com campos em branco — o secret nunca volta preenchido. A primeira instalação ainda é o ZIP ou `zcli apps:create`.
 
 O ZCLI serve o app em `http://localhost:4567`. Abra um ticket no ambiente de testes e acrescente `?zcli_apps=true`. Exemplo: `https://d3v-brudarko.zendesk.com/agent/tickets/1?zcli_apps=true`. Clique em Apps na lateral ou no ícone do app no editor. O app também aparece na navegação.
 
@@ -20,8 +22,7 @@ Fluxo de desenvolvimento baseado no [quick start oficial](https://developer.zend
 
 ```sh
 npx zcli login
-npm run validate
-npm run package
+npm run update
 ```
 
 Não coloque credenciais no repositório. Histórico, macros e fusão Support usam a sessão ZAF e as permissões do agente. O envio direto depende do serviço privado opcional, configurado separadamente. `.zcliignore` exclui dependências, serviço e fontes do pacote; `npm run build` gera os arquivos que o app carrega. Em Customers, abra o perfil do contato com `?zcli_apps=true` e expanda o painel Apps.

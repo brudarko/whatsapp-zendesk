@@ -33,41 +33,92 @@ test("user sidebar reads user context without requesting ticket properties", asy
   assert.deepEqual(reads, ["currentUser", "user"]);
 });
 
-test("history spans tickets and pages, excludes email, reports unavailable tickets", async () => {
+test("history lists one send per recorded ticket and ignores merge notes", async () => {
+  const record = RECORD_PREFIX + JSON.stringify({
+    version: 2, userId: "11", macroId: "7", parameters: ["Ana"], templateText: text,
+  });
   const api = zendesk({ request: async ({ url }) => {
-    if (url.includes("requested")) return { tickets: [{ id: 1 }, { id: 2 }, { id: 3 }], next_page: null };
+    if (url.includes("requested")) return { tickets: [
+      { id: 8, tags: ["whatsapp_active_message"], via: { channel: "api" } },
+      { id: 4, tags: ["whatsapp_active_message"], via: { channel: "whatsapp" } },
+      { id: 3, tags: ["whatsapp_active_message"] },
+      { id: 1, via: { channel: "email" } },
+    ], next_page: null };
     if (url.includes("/3/")) throw new Error("403");
-    if (url.includes("page=2")) return { comments: [{ id: 12, created_at: "2026-09-08", via: { channel: "whatsapp" } }] };
-    if (url.includes("/1/")) return { comments: [{ id: 11, via: { channel: "email" } }], next_page: "https://account.zendesk.com/api/v2/tickets/1/comments.json?page=2" };
-    return { comments: [{ id: 21, created_at: "2026-09-07", via: { channel: "whatsapp" } }] };
-  }});
+    if (url.includes("/8/")) return { comments: [
+      { id: 1, created_at: "2026-09-11T23:19:00Z", public: false, body: record },
+      { id: 2, created_at: "2026-09-11T23:19:30Z", public: false, body: "Unido à conversa nativa do WhatsApp." },
+    ] };
+    if (url.includes("/4/")) return { comments: [
+      { id: 9, created_at: "2026-09-11T23:19:00Z", public: false, body: record },
+      { id: 10, created_at: "2026-09-11T23:20:00Z", via: { channel: "whatsapp" }, body: "oi" },
+    ] };
+    throw new Error(`unexpected ${url}`);
+  } });
   const result = await api.customerHistory(11);
-  assert.deepEqual(result.messages.map(m => m.id), [12, 21]);
+  assert.deepEqual(result.messages.map(m => m.ticketId), [8]);
+  assert.equal(result.messages[0].preview, "Olá");
   assert.deepEqual(result.failures, [3]);
-  assert.ok(result.messages.every(m => m.status.includes("Sem confirmação")));
+  assert.ok(result.messages[0].status.includes("Sem confirmação"));
 });
+
+function sendGet(key) {
+  if (key === "currentUser") return { currentUser: { id: 42 } };
+  return { "user.id": 11 };
+}
+
+function sendRequest(calls, extra = {}) {
+  return async o => {
+    calls.push(o);
+    if (extra.handle && await extra.handle(o)) return extra.handle(o);
+    if (o.url.includes("requested")) return { tickets: extra.tickets ?? [] };
+    if (o.url.includes("identities")) return { identities: [] };
+    if (o.url.includes("/users/")) return { user: { id: 11, role: "end-user" } };
+    if (o.url.includes("macros")) return { macro };
+    if (o.url === "/api/v2/tickets.json") return { ticket: { id: 3 } };
+    if (o.type === "PUT" && String(o.url).includes("/tickets/")) return { ticket: { id: 3 } };
+    if (o.type === "POST" && String(o.url).includes("/merge")) return {};
+    return { state: "accepted" };
+  };
+}
 
 test("active send records a private ticket before dispatch and disables mutation retries", async () => {
   const calls = [];
   const api = zendesk({ metadata: async () => ({ settings: { outbound_service_host: "send.example.test" } }),
-    get: async () => ({ "user.id": 11 }), request: async o => {
-      calls.push(o);
-      if (o.url.includes("identities")) return { identities: [] };
-      if (o.url.includes("/users/")) return { user: { id: 11, role: "end-user" } };
-      if (o.url.includes("macros")) return { macro };
-      if (o.url === "/api/v2/tickets.json") return { ticket: { id: 3 } };
-      return { state: "accepted" };
-    } });
-  await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"] }, "user_sidebar");
+    get: sendGet, request: sendRequest(calls) });
+  await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"], assignWaitMs: 0 }, "user_sidebar");
   const writes = calls.filter(c => c.type === "POST");
   assert.equal(writes[0].url, "/api/v2/tickets.json");
   assert.equal(JSON.parse(writes[0].data).ticket.comment.public, false);
+  assert.equal(JSON.parse(writes[0].data).ticket.assignee_id, 42);
   const instruction = JSON.parse(JSON.parse(writes[0].data).ticket.comment.body.slice(RECORD_PREFIX.length));
   assert.equal(instruction.version, 2);
   assert.equal("consent" in instruction, false);
   assert.equal("approved" in instruction, false);
   assert.equal(writes[1].url, "https://send.example.test/send");
   assert.ok(writes.every(c => c.autoRetry === false));
+  const assign = calls.find(c => c.type === "PUT" && String(c.url).includes("/tickets/3.json"));
+  assert.equal(JSON.parse(assign.data).ticket.assignee_id, 42);
+});
+
+test("production send posts the recorded ticket to Portta with Sunshine Basic", async () => {
+  const appId = "a".repeat(24), keyId = `app_${"b".repeat(24)}`, integrationId = "c".repeat(24);
+  const calls = [];
+  const api = zendesk({
+    metadata: async () => ({ settings: { sunshine_app_id: appId, sunshine_key_id: keyId, whatsapp_integration_id: integrationId, meta_portfolio_id: "1" } }),
+    context: async () => ({ account: { subdomain: "d3v-brudarko" } }),
+    get: sendGet,
+    request: sendRequest(calls),
+  });
+  await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"], assignWaitMs: 0 }, "user_sidebar");
+  const send = calls.find(c => String(c.url).includes("/whatsapp/send/"));
+  assert.equal(send.url, "https://apps.portta.com.br/whatsapp/send/d3v-brudarko");
+  assert.equal(send.secure, true);
+  assert.equal(send.headers.Authorization, "Basic {{basic_auth.token}}");
+  assert.deepEqual(send.basic_auth, { username: keyId, password: "{{setting.sunshine_secret}}" });
+  assert.deepEqual(JSON.parse(send.data), { ticketId: "3", appId, integrationId, portfolioId: "1" });
+  assert.equal(send.autoRetry, false);
+  assert.equal(calls.some(c => c.headers?.Authorization?.includes("outbound_service_token")), false);
 });
 
 test("template parser checks variable count, unsupported syntax and placeholders", () => {
@@ -133,9 +184,13 @@ test("top bar creates a customer only after checking aliases, then records and s
   for (const scenario of ["new", "duplicate", "timeout"]) {
     const writes = [], searches = [];
     const api = zendesk({ metadata: async () => ({ settings: { outbound_service_host: "send.example.test" } }),
-      get: async () => { throw new Error("Top bar must not read a ticket context"); },
+      get: async key => {
+        if (key === "currentUser") return { currentUser: { id: 42 } };
+        throw new Error("Top bar must not read a ticket context");
+      },
       request: async o => {
         if (o.type === "POST") writes.push(o);
+        if (o.url.includes("requested")) return { tickets: [] };
         if (o.url.includes("search.json")) { searches.push(decodeURIComponent(o.url)); return { users: scenario === "duplicate" ? [{ id: 12 }] : [] }; }
         if (scenario === "timeout" && o.type === "POST") throw new Error("timeout");
         if (o.url.includes("macros")) return { macro };
@@ -144,7 +199,7 @@ test("top bar creates a customer only after checking aliases, then records and s
         if (o.url === "/api/v2/tickets.json") return { ticket: { id: 3 } };
         return { state: "accepted" };
       } });
-    const send = () => api.sendActive({ newCustomer: { name: "Ana", phone: "(11) 98765-4321" }, macroId: 7, parameters: ["Ana"], consent: true, approved: true }, "top_bar");
+    const send = () => api.sendActive({ newCustomer: { name: "Ana", phone: "(11) 98765-4321" }, macroId: 7, parameters: ["Ana"], consent: true, approved: true, assignWaitMs: 0 }, "top_bar");
     if (scenario === "duplicate") { await assert.rejects(send(), /Encontramos um contato/); assert.equal(writes.length, 0); }
     else if (scenario === "timeout") { await assert.rejects(send(), /Cadastro não confirmado/); assert.deepEqual(writes.map(w => w.url), ["/api/v2/users.json"]); }
     else {
@@ -190,4 +245,99 @@ test("recipient display groups Brazilian numbers without inventing digits", () =
   // A busca única decide o critério pelo que foi digitado.
   for (const value of ["+55 49", "(11) 98765-4321", "4999465530"]) assert.equal(looksLikePhone(value), true);
   for (const value of ["Bruno", "Bruno 2", "", "1"]) assert.equal(looksLikePhone(value), false);
+});
+
+const openConversation = { id: 4, status: "open", via: { channel: "whatsapp" }, updated_at: "2026-09-11T20:00:00Z" };
+
+test("findSendConflict sends without a conversation and treats a failed window as stale", async () => {
+  const api = zendesk({
+    metadata: async () => ({ settings: {} }),
+    request: async ({ url }) => url.includes("requested")
+      ? { tickets: url.includes("11") ? [] : [openConversation] }
+      : { ticket: { id: 4, requester_id: 12 } },
+  });
+  assert.equal((await api.findSendConflict(11)).action, "send");
+  const stale = await api.findSendConflict(12);
+  assert.equal(stale.action, "stale");
+  assert.equal(stale.ticket.id, 4);
+});
+
+test("assignToCurrentUser puts the signed-in agent on the ticket", async () => {
+  const calls = [];
+  const api = zendesk({ get: sendGet, request: async o => { calls.push(o); return {}; } });
+  const result = await api.assignToCurrentUser(4);
+  assert.equal(result.assigneeId, 42);
+  assert.equal(calls[0].type, "PUT");
+  assert.equal(calls[0].url, "/api/v2/tickets/4.json");
+  assert.deepEqual(JSON.parse(calls[0].data).ticket, { assignee_id: 42, status: "open" });
+});
+
+test("closeConversationTicket falls back to solved when closed is rejected", async () => {
+  const statuses = [];
+  const api = zendesk({ request: async o => {
+    const status = JSON.parse(o.data).ticket.status;
+    statuses.push(status);
+    if (status === "closed") throw new Error("422");
+    return {};
+  } });
+  await api.closeConversationTicket(4);
+  assert.deepEqual(statuses, ["closed", "solved"]);
+});
+
+test("close_and_new closes the stale ticket before recording the send", async () => {
+  const calls = [];
+  const api = zendesk({
+    metadata: async () => ({ settings: { outbound_service_host: "send.example.test" } }),
+    get: sendGet,
+    request: sendRequest(calls),
+  });
+  await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"], intent: "close_and_new", closeTicketId: 4, assignWaitMs: 0 }, "user_sidebar");
+  const writes = calls.filter(c => c.type === "PUT" || c.type === "POST");
+  assert.equal(writes[0].url, "/api/v2/tickets/4.json");
+  assert.equal(JSON.parse(writes[0].data).ticket.status, "closed");
+  assert.equal(writes[1].url, "/api/v2/tickets.json");
+  assert.equal(writes[2].url, "https://send.example.test/send");
+});
+
+test("merge_into_new unites the old conversation into the new record", async () => {
+  const calls = [];
+  const api = zendesk({
+    metadata: async () => ({ settings: { outbound_service_host: "send.example.test", auto_merge_tickets: true } }),
+    get: sendGet,
+    request: sendRequest(calls, { tickets: [openConversation, { id: 3, status: "open", tags: ["whatsapp_active_message"], via: { channel: "api" } }] }),
+  });
+  const result = await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"], intent: "merge_into_new", mergeTicketId: 4, assignWaitMs: 0 }, "user_sidebar");
+  assert.equal(result.ticketId, "3");
+  assert.equal(result.merge.intoNew, true);
+  const merge = calls.find(c => c.type === "POST" && String(c.url).includes("/merge"));
+  assert.equal(merge.url, "/api/v2/tickets/3/merge");
+  assert.deepEqual(JSON.parse(merge.data).ids, [4]);
+  assert.equal(calls.some(c => c.type === "POST" && String(c.url).includes("/tickets/4/merge")), false);
+});
+
+test("sendActive assigns a conversation ticket that appears after dispatch", async () => {
+  const calls = [];
+  let lists = 0;
+  const api = zendesk({
+    metadata: async () => ({ settings: { outbound_service_host: "send.example.test" } }),
+    get: sendGet,
+    request: async o => {
+      calls.push(o);
+      if (o.url.includes("requested")) {
+        lists += 1;
+        return { tickets: lists > 1 ? [openConversation] : [] };
+      }
+      if (o.url.includes("identities")) return { identities: [] };
+      if (o.url.includes("/users/")) return { user: { id: 11, role: "end-user" } };
+      if (o.url.includes("macros")) return { macro };
+      if (o.url === "/api/v2/tickets.json") return { ticket: { id: 3 } };
+      if (o.type === "PUT") return {};
+      return { state: "accepted" };
+    },
+  });
+  const result = await api.sendActive({ userId: 11, macroId: 7, parameters: ["Ana"], assignWaitMs: 0 }, "user_sidebar");
+  assert.equal(result.ticketId, "4");
+  assert.equal(result.assigned, true);
+  const assign = calls.find(c => c.type === "PUT" && String(c.url).includes("/tickets/4.json"));
+  assert.equal(JSON.parse(assign.data).ticket.assignee_id, 42);
 });

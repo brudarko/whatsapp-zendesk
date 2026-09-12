@@ -1,8 +1,10 @@
-// Acesso ao Sunshine Conversations pela credencial que o administrador informa na
-// instalação. O segredo nunca chega ao browser: o proxy do Zendesk monta o Basic com
-// {{basic_auth.token}} (concatena username:password e codifica em base64) e substitui
-// {{setting.sunshine_secret}} fora do navegador. Testado: a sessão do agente recebe
-// 401 em /sc/v2, então a chave da Conversations API é obrigatória.
+// Acesso ao Sunshine Conversations pela credencial da instalação. O segredo nunca
+// chega ao browser: o proxy ZAF monta Basic com {{basic_auth.token}} e substitui
+// {{setting.sunshine_secret}} fora do navegador. Pedidos a *.zendesk.com/sc NÃO
+// passam por esse proxy (são API Zendesk no browser), então o placeholder ia
+// literal e o Sunshine respondia 401 Invalid authorization header format. O
+// destino é apps.portta.com.br, que encaminha para {subdomínio}.zendesk.com/sc.
+// A sessão do agente também recebe 401 em /sc/v2; a chave Conversations é obrigatória.
 const HEX24 = /^[a-f0-9]{24}$/i;
 
 // Diagnóstico por campo: "credencial ausente" sem dizer qual campo está errado
@@ -33,21 +35,70 @@ export function sunshineConfig(settings = {}) {
   };
 }
 
+export function describeZafError(error) {
+  if (error == null) return "Erro desconhecido.";
+  if (typeof error === "string" && error.trim()) return error;
+  if (error instanceof Error && error.message) return error.message;
+  const status = error.status ?? error.statusCode;
+  const body = error.responseJSON ?? error.response ?? error.error;
+  const description = body?.error?.description || body?.description || body?.error?.message
+    || (typeof body?.error === "string" ? body.error : "") || body?.message;
+  const parts = [status && `HTTP ${status}`, description, error.message].filter(Boolean);
+  if (parts.length) {
+    const text = parts.join(" · ");
+    if (/invalid key\/secret pair/i.test(text))
+      return `${text}. Cole de novo o Key ID e o secret da mesma chave Conversations (o secret só aparece na criação).`;
+    return text;
+  }
+  try {
+    const text = JSON.stringify(error);
+    return text && text !== "{}" ? text.slice(0, 500) : "Erro do Zendesk sem mensagem.";
+  } catch {
+    return "Erro do Zendesk sem mensagem.";
+  }
+}
+
+function unwrapSunshine(response) {
+  const wrapped = response && typeof response === "object"
+    && ("responseJSON" in response || ("status" in response && "responseText" in response));
+  const body = wrapped ? (response.responseJSON ?? (response.responseText ? JSON.parse(response.responseText) : {})) : response;
+  const keys = body && typeof body === "object" && !Array.isArray(body) ? Object.keys(body) : [];
+  return {
+    status: wrapped ? (response.status ?? 0) : 200,
+    body,
+    keys,
+    count: Array.isArray(body?.messageTemplates) ? body.messageTemplates.length : null,
+  };
+}
+
 export function sunshineRequest(client, config, subdomain) {
   if (!/^[a-z0-9-]+$/.test(subdomain ?? "")) throw new Error("Subdomínio Zendesk inválido.");
-  const base = `https://${subdomain}.zendesk.com/sc`;
+  const base = `https://apps.portta.com.br/whatsapp/sc/${subdomain}`;
   return async function request(path, method = "GET", body) {
     if (!path.startsWith("/v")) throw new Error("Caminho Sunshine inválido.");
-    return client.request({
-      url: base + path,
-      type: method,
-      dataType: "json",
-      contentType: "application/json",
-      secure: true,
-      headers: { Authorization: "Basic {{basic_auth.token}}" },
-      basic_auth: { username: config.keyId, password: "{{setting.sunshine_secret}}" },
-      ...(body ? { data: JSON.stringify(body) } : {}),
-    });
+    const url = base + path;
+    try {
+      const response = await client.request({
+        url,
+        type: method,
+        dataType: "json",
+        secure: true,
+        httpCompleteResponse: true,
+        headers: { Authorization: "Basic {{basic_auth.token}}" },
+        basic_auth: { username: config.keyId, password: "{{setting.sunshine_secret}}" },
+        ...(body ? { contentType: "application/json", data: JSON.stringify(body) } : {}),
+      });
+      const payload = unwrapSunshine(response);
+      request.last = { url, method, status: payload.status, keys: payload.keys, count: payload.count };
+      if (payload.status >= 400) {
+        throw Object.assign(new Error(describeZafError({ status: payload.status, responseJSON: payload.body })), { probe: request.last });
+      }
+      return payload.body;
+    } catch (error) {
+      if (error?.probe) throw error;
+      request.last = { url, method, status: error?.status ?? null, error: describeZafError(error) };
+      throw Object.assign(error instanceof Error ? error : new Error(describeZafError(error)), { probe: request.last });
+    }
   };
 }
 

@@ -1,0 +1,908 @@
+{
+  "generatedAt": "2026-09-09T00:40:54.751Z",
+  "ref": "main",
+  "gardenVersion": "9.15.0",
+  "source": "https://github.com/zendeskgarden/react-components",
+  "packages": {
+    "accordions": {
+      "package": "accordions",
+      "npm": "@zendeskgarden/react-accordions",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Collapsible disclosure sections (Accordion) and stepped flows (Stepper). Use to progressively reveal content.",
+      "components": [
+        "Accordion",
+        "Stepper",
+        "Timeline"
+      ],
+      "typeExports": [
+        "IAccordionProps",
+        "IStepperProps",
+        "IStepperLabelProps",
+        "ITimelineProps",
+        "ITimelineItemProps"
+      ],
+      "interfaces": [
+        "IAccordionProps",
+        "IStepperProps",
+        "IStepperLabelProps",
+        "ITimelineProps",
+        "ITimelineItemProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { IUseAccordionProps } from '@zendeskgarden/container-accordion';\nimport {\n  SVGAttributes,\n  HTMLAttributes,\n  LiHTMLAttributes,\n  OlHTMLAttributes,\n  ReactElement\n} from 'react';\n\nexport interface IAccordionProps<Value = any> extends Omit<\n  HTMLAttributes<HTMLDivElement>,\n  'onChange'\n> {\n  /** Sets `aria-level` heading rank in the document structure */\n  level: NonNullable<HTMLAttributes<HTMLDivElement>['aria-level']>;\n  /** Sets the expanded sections in a controlled accordion */\n  expandedSections?: Value[];\n  /** Sets the default expanded sections in an uncontrolled accordion */\n  defaultExpandedSections?: Value[];\n  /** Hides section borders */\n  isBare?: boolean;\n  /** Allows uncontrolled accordion sections to collapse */\n  isCollapsible?: boolean;\n  /** Applies compact styling */\n  isCompact?: boolean;\n  /** Animates section expansion and collapse */\n  isAnimated?: boolean;\n  /** Enables simultaneous expansion of uncontrolled accordion sections */\n  isExpandable?: boolean;\n  /**\n   * Handles accordion expansion changes\n   *\n   * @param {*} value A section value\n   */\n  onChange?: IUseAccordionProps<Value>['onChange'];\n}\n\nexport interface IStepperProps extends OlHTMLAttributes<HTMLOListElement> {\n  /** Defines the currently active step, starting at 0 */\n  activeIndex?: number;\n  /** Applies horizontal layout styling */\n  isHorizontal?: boolean;\n}\n\nexport interface IStepperLabelProps extends HTMLAttributes<HTMLDivElement> {\n  /** Replaces the label number with an icon */\n  icon?: ReactElement;\n  /** Passes props to the default check icon */\n  iconProps?: SVGAttributes<SVGElement>;\n  /** Hides the label text */\n  isHidden?: boolean;\n}\n\nexport interface ITimelineProps extends OlHTMLAttributes<HTMLOListElement> {\n  /** Applies alternate styling */\n  isAlternate?: boolean;\n}\n\nexport interface ITimelineItemProps extends LiHTMLAttributes<HTMLLIElement> {\n  /** Replaces the dot with an icon */\n  icon?: ReactElement;\n  /**\n   * Provides surface color for an icon placed on a non-default background.\n   * Accepts a [color variable](/components/theme-object#colors) key (i.e.\n   * `background.recessed`) to render based on light/dark mode, or any hex\n   * value.\n   */\n  surfaceColor?: string;\n}\n",
+      "readme": "# @zendeskgarden/react-accordions [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-accordions)](https://www.npmjs.com/package/@zendeskgarden/react-accordions)\n\nThis package includes components related to accordions in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-accordions\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Accordion\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Accordion } from '@zendeskgarden/react-accordions';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Accordion level={3}>\n    <Accordion.Section>\n      <Accordion.Header>\n        <Accordion.Label>Turnip greens yarrow</Accordion.Label>\n      </Accordion.Header>\n      <Accordion.Panel>\n        Turnip greens yarrow ricebean rutabaga endive cauliflower sea lettuce kohlrabi amaranth\n        water spinach avocado daikon napa cabbage asparagus winter purslane kale.\n      </Accordion.Panel>\n    </Accordion.Section>\n    <Accordion.Section>\n      <Accordion.Header>\n        <Accordion.Label>Corn amaranth salsify</Accordion.Label>\n      </Accordion.Header>\n      <Accordion.Panel>\n        Corn amaranth salsify bunya nuts nori azuki bean chickweed potato bell pepper artichoke.\n        Nori grape silver beet broccoli kombu beet greens fava bean potato quandong celery.\n      </Accordion.Panel>\n    </Accordion.Section>\n    <Accordion.Section>\n      <Accordion.Header>\n        <Accordion.Label>Celery quandong swiss</Accordion.Label>\n      </Accordion.Header>\n      <Accordion.Panel>\n        Celery quandong swiss chard chicory earthnut pea potato. Salsify taro catsear garlic gram\n        celery bitterleaf wattle seed collard greens nori.\n      </Accordion.Panel>\n    </Accordion.Section>\n  </Accordion>\n</ThemeProvider>;\n```\n\n### Stepper\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Stepper } from '@zendeskgarden/react-accordions';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Stepper>\n    <Stepper.Step>\n      <Stepper.Label>Brussels</Stepper.Label>\n      <Stepper.Content>\n        Brussels sprout coriander water chestnut gourd swiss chard wakame kohlrabi radish artichoke.\n      </Stepper.Content>\n    </Stepper.Step>\n    <Stepper.Step>\n      <Stepper.Label>Beetroot</Stepper.Label>\n      <Stepper.Content>\n        Beetroot carrot watercress. Corn amaranth salsify bunya nuts nori azuki bean turnip greens.\n      </Stepper.Content>\n    </Stepper.Step>\n    <Stepper.Step>\n      <Stepper.Label>Turnip</Stepper.Label>\n      <Stepper.Content>\n        Turnip chicory salsify pea sprouts fava bean. Dandelion zucchini burdock yarrow chickpea.\n      </Stepper.Content>\n    </Stepper.Step>\n  </Stepper>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/accordions"
+    },
+    "avatars": {
+      "package": "avatars",
+      "npm": "@zendeskgarden/react-avatars",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "User/system avatars with status badges. Use for agent/end-user identity.",
+      "components": [
+        "Avatar",
+        "StatusIndicator"
+      ],
+      "typeExports": [
+        "IAvatarProps",
+        "IStatusIndicatorProps"
+      ],
+      "interfaces": [
+        "IAvatarProps",
+        "IStatusIndicatorProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes } from 'react';\n\nexport const SIZE = ['extraextrasmall', 'extrasmall', 'small', 'medium', 'large'] as const;\n\nexport const STATUS = ['available', 'away', 'transfers', 'offline'] as const;\n\nexport interface IAvatarProps extends HTMLAttributes<HTMLElement> {\n  /**\n   * Sets the avatar background color. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e.\n   * `background.emphasis`) to render based on light/dark mode, or any hex\n   * value.\n   */\n  backgroundColor?: string;\n  /**\n   * Sets the color for child SVG or `Avatar.Text` components. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e.\n   * `foreground.onEmphasis`) to render based on light/dark mode, or any hex\n   * value.\n   */\n  foregroundColor?: string;\n  /**\n   * Provides surface color for an avatar placed on a non-default background.\n   * Accepts a [color variable](/components/theme-object#colors) key (i.e.\n   * `background.subtle`) to render based on light/dark mode, or any hex value.\n   */\n  surfaceColor?: string;\n  /** Applies system styling for representing objects, brands, or products */\n  isSystem?: boolean;\n  /** Specifies the avatar size */\n  size?: (typeof SIZE)[number];\n  /** Applies status styling */\n  status?: (typeof STATUS)[number];\n  /** Specifies the status label */\n  statusLabel?: string;\n  /** Sets the badge text and applies active styling */\n  badge?: string | number;\n}\n\nexport interface IStatusIndicatorProps extends Omit<HTMLAttributes<HTMLElement>, 'aria-label'> {\n  /** Overrides the label for the status indicator. Use `null` to mark the indicator as decorative. */\n  'aria-label'?: string | null;\n  /** Applies status type for styling and default aria-label */\n  type?: (typeof STATUS)[number];\n  /** Applies compact styling */\n  isCompact?: boolean;\n}\n",
+      "readme": "# @zendeskgarden/react-avatars [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-avatars)](https://www.npmjs.com/package/@zendeskgarden/react-avatars)\n\nThis package includes components relating to avatars in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-avatars\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Avatar, StatusIndicator } from '@zendeskgarden/react-avatars';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Avatar>\n    <img src=\"images/user.png\" alt=\"Example Avatar\" />\n  </Avatar>\n\n  <StatusIndicator type=\"available\" aria-label=\"status: online\">\n    Available\n  </StatusIndicator>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/avatars"
+    },
+    "breadcrumbs": {
+      "package": "breadcrumbs",
+      "npm": "@zendeskgarden/react-breadcrumbs",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Hierarchical navigation trail. Use for nested page/location context.",
+      "components": [
+        "Breadcrumb"
+      ],
+      "typeExports": [],
+      "interfaces": [],
+      "props": "",
+      "readme": "# @zendeskgarden/react-breadcrumbs [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-breadcrumbs)](https://www.npmjs.com/package/@zendeskgarden/react-breadcrumbs)\n\nThis package includes components relating to breadcrumbs in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-breadcrumbs\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Breadcrumb } from '@zendeskgarden/react-breadcrumbs';\nimport { Anchor } from '@zendeskgarden/react-buttons';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Breadcrumb>\n    <Anchor href=\"/\">Root</Anchor>\n    <Anchor href=\"..\">Parent</Anchor>\n    <span>Self</span>\n  </Breadcrumb>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/breadcrumbs"
+    },
+    "buttons": {
+      "package": "buttons",
+      "npm": "@zendeskgarden/react-buttons",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Button, IconButton, ToggleButton, Anchor, SplitButton, ChevronButton. Primary way to trigger actions.",
+      "components": [
+        "Button",
+        "Anchor",
+        "ChevronButton",
+        "IconButton",
+        "SplitButton",
+        "ToggleButton",
+        "ToggleIconButton"
+      ],
+      "typeExports": [
+        "IButtonProps",
+        "IButtonEndIconProps",
+        "IButtonStartIconProps",
+        "IAnchorProps",
+        "IIconButtonProps",
+        "IChevronButtonProps",
+        "IToggleButtonProps",
+        "IToggleIconButtonProps"
+      ],
+      "interfaces": [
+        "IButtonProps",
+        "IToggleButtonProps",
+        "IIconButtonProps",
+        "IToggleIconButtonProps",
+        "IButtonIconProps",
+        "IAnchorProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { AnchorHTMLAttributes, ButtonHTMLAttributes, SVGAttributes } from 'react';\n\nexport const SIZE = ['small', 'medium', 'large'] as const;\n\nexport interface IButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Applies danger styling */\n  isDanger?: boolean;\n  /** Specifies the button size */\n  size?: (typeof SIZE)[number];\n  /** Stretches the button fill to its container width */\n  isStretched?: boolean;\n  /** Applies neutral button styling */\n  isNeutral?: boolean;\n  /** Applies primary button styling */\n  isPrimary?: boolean;\n  /** Applies basic button styling */\n  isBasic?: boolean;\n  /** Applies link (anchor) button styling */\n  isLink?: boolean;\n  /** Applies pill button styling */\n  isPill?: boolean;\n  /** Applies inset `box-shadow` styling on focus */\n  focusInset?: boolean;\n}\n\nexport interface IToggleButtonProps extends IButtonProps {\n  /**\n   * Determines if the button is pressed. Use \"mixed\" to indicate that\n   * the toggle controls other elements which do not share the same value.\n   */\n  isPressed?: boolean | 'mixed';\n}\n\nexport interface IIconButtonProps extends Omit<IButtonProps, 'isStretched' | 'isLink'> {\n  /** Rotates icon 180 degrees */\n  isRotated?: boolean;\n}\n\nexport interface IToggleIconButtonProps\n  extends IIconButtonProps, Pick<IToggleButtonProps, 'isPressed'> {}\n\nexport interface IButtonIconProps\n  extends Pick<IIconButtonProps, 'isRotated'>, SVGAttributes<SVGElement> {}\n\nexport interface IAnchorProps\n  extends Pick<IButtonProps, 'isDanger'>, AnchorHTMLAttributes<HTMLAnchorElement> {\n  /**\n   * Attaches `target=\"_blank\"` and `rel=\"noopener noreferrer\"` to an anchor that\n   * navigates to an external resource. This ensures that the anchor is a\n   * safe [cross-origin destination link](https://web.dev/external-anchors-use-rel-noopener/).\n   **/\n  isExternal?: boolean;\n  /**\n   * Allows a customized/translated text label to be passed to the external link icon,\n   * making that icon accessible to assistive technology\n   **/\n  externalIconLabel?: string;\n  /** Determines if the anchor has underline styling */\n  isUnderlined?: boolean;\n}\n",
+      "readme": "# @zendeskgarden/react-buttons [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-buttons)](https://www.npmjs.com/package/@zendeskgarden/react-buttons)\n\nThis package includes components relating to buttons in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-buttons\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Button\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Button } from '@zendeskgarden/react-buttons';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <>\n    <Button onClick={() => alert('clicked')}>Default</Button>\n    <Button isPrimary isDanger>\n      Primary danger button\n    </Button>\n  </>\n</ThemeProvider>;\n```\n\n### Media button\n\n```jsx\nimport React, { useState } from 'react';\nimport { Button } from '@zendeskgarden/react-buttons';\nimport StartIcon from '@zendeskgarden/icons/src/16/shield-stroke.svg';\nimport EndIcon from '@zendeskgarden/icons/src/16/chevron-down-stroke.svg';\n\nconst MediaButton = ({ children, ...props }) => {\n  const [isRotated, setRotated] = useState(false);\n\n  return (\n    <Button onClick={() => setRotated(!isRotated)} {...props}>\n      <Button.StartIcon>\n        <StartIcon />\n      </Button.StartIcon>\n      {children}\n      <Button.EndIcon isRotated={isRotated}>\n        <EndIcon />\n      </Button.EndIcon>\n    </Button>\n  );\n};\n```\n",
+      "docs": "https://garden.zendesk.com/components/buttons"
+    },
+    "chrome": {
+      "package": "chrome",
+      "npm": "@zendeskgarden/react-chrome",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "App shell layout: Chrome, Nav, Header, Body, Content, Sidebar, SkipNav. Use to frame full-page (nav_bar/modal) apps.",
+      "components": [
+        "HeaderItem",
+        "HeaderItemIcon",
+        "HeaderItemText",
+        "HeaderItemWrapper",
+        "FooterItem",
+        "NavItem",
+        "NavItemIcon",
+        "NavItemText",
+        "Chrome",
+        "SkipNav",
+        "Body",
+        "Content",
+        "Main",
+        "Header",
+        "Footer",
+        "Nav",
+        "Sheet",
+        "PRODUCTS",
+        "type IChromeProps",
+        "type ISkipNavProps",
+        "type IHeaderProps",
+        "type IHeaderItemProps",
+        "type IHeaderItemTextProps",
+        "type IHeaderItemWrapperProps",
+        "type INavProps",
+        "type INavItemProps",
+        "type INavItemTextProps",
+        "type ISheetProps",
+        "type ISheetFooterProps"
+      ],
+      "typeExports": [],
+      "interfaces": [
+        "Product",
+        "IChromeProps",
+        "ISkipNavProps",
+        "IHeaderProps",
+        "IHeaderItemProps",
+        "IHeaderItemTextProps",
+        "IHeaderItemWrapperProps",
+        "INavProps",
+        "INavItemProps",
+        "INavItemTextProps",
+        "ISheetProps",
+        "ISheetFooterProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { AnchorHTMLAttributes, ButtonHTMLAttributes, HTMLAttributes } from 'react';\n\nexport const PLACEMENT = ['end', 'start'] as const;\n\nexport const PRODUCTS = ['chat', 'explore', 'guide', 'support', 'talk'] as const;\n\nexport type Product = (typeof PRODUCTS)[number];\n\nexport interface IChromeProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies a custom hue to the chrome navigation */\n  hue?: string;\n  /** Prevents fixed positioning from being applied to the `<html>` element */\n  isFluid?: boolean;\n}\n\nexport interface ISkipNavProps extends AnchorHTMLAttributes<HTMLAnchorElement> {\n  /** Sets the ID of the element to navigate to */\n  targetId: string;\n  /** Sets the `z-index` of the element */\n  zIndex?: number;\n}\n\nexport interface IHeaderProps extends HTMLAttributes<HTMLElement> {\n  /** Displays logo for standlone usage  */\n  isStandalone?: boolean;\n}\n\nexport interface IHeaderItemProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Maximizes the width of a flex item in the header */\n  maxX?: boolean;\n  /** Maximizes the height of the item (i.e. contains a search input) */\n  maxY?: boolean;\n  /** Rounds the border radius of the item */\n  isRound?: boolean;\n  /**\n   * Applies a\n   * [brand color](/design/color#brand-colors)\n   * to the product logo\n   */\n  product?: Product;\n  /** Applies header logo styles to the item */\n  hasLogo?: boolean;\n}\n\nexport interface IHeaderItemTextProps extends HTMLAttributes<HTMLElement> {\n  /** Hides item text. Text remains accessible to screen readers. */\n  isClipped?: boolean;\n}\n\nexport interface IHeaderItemWrapperProps extends HTMLAttributes<HTMLDivElement> {\n  /** Maximizes the width of a flex item in the header */\n  maxX?: boolean;\n  /** Maximizes the height of the item (i.e. contains a search input) */\n  maxY?: boolean;\n  /** Rounds the border radius of the item */\n  isRound?: boolean;\n}\n\nexport interface INavProps extends HTMLAttributes<HTMLElement> {\n  /** Expands the nav area to display the item text */\n  isExpanded?: boolean;\n}\n\nexport interface INavItemProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Applies a product-specific color palette */\n  product?: Product;\n  /** Indicates that the item is current in the nav */\n  isCurrent?: boolean;\n  /** Indicates that the item contains a product logo */\n  hasLogo?: boolean;\n  /** Indicates that the item contains the company brandmark */\n  hasBrandmark?: boolean;\n}\n\nexport interface INavItemTextProps extends HTMLAttributes<HTMLSpanElement> {\n  /** Wraps overflow item text instead of truncating long strings with an ellipsis */\n  isWrapped?: boolean;\n}\n\nexport interface ISheetProps extends HTMLAttributes<HTMLElement> {\n  /** Identifies the sheet */\n  id?: string;\n  /** Opens the sheet */\n  isOpen?: boolean;\n  /** Determines whether animation for opening and closing the sheet is used */\n  isAnimated?: boolean;\n  /** Directs keyboard focus to the sheet on mount */\n  focusOnMount?: boolean;\n  /** Returns keyboard focus to the element that triggered the sheet */\n  restoreFocus?: boolean;\n  /** Adjusts the placement of the sheet */\n  placement?: (typeof PLACEMENT)[number];\n  /** Sets the size of the open sheet */\n  size?: string;\n}\n\nexport interface ISheetFooterProps extends HTMLAttributes<HTMLElement> {\n  /** Applies compact styling and centers the elements */\n  isCompact?: boolean;\n}\n",
+      "readme": "# @zendeskgarden/react-chrome [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-chrome)](https://www.npmjs.com/package/@zendeskgarden/react-chrome)\n\nCollection of elements relating to the Chrome component within the Garden Design System\n\n| ⚠️ **DEPRECATED**                                                                                              |\n| :------------------------------------------------------------------------------------------------------------- |\n| The `Chrome` components (including `Body`, `Content`, `Header`, `Main`, `Nav`) are deprecated for general use. |\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-chrome\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usages\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Chrome, Nav, Body, Header, Content, Main } from '@zendeskgarden/react-chrome';\nimport SupportIcon from '@zendeskgarden/icons/src/26/relationshape-support.svg';\nimport BrandmarkIcon from '@zendeskgarden/svg-icons/src/26/zendesk.svg';\n\n<ThemeProvider>\n  <Chrome>\n    <Nav isExpanded>\n      <Nav.Item hasLogo product=\"support\" title=\"Zendesk Support\">\n        <Nav.ItemIcon>\n          <SupportIcon />\n        </Nav.ItemIcon>\n        <NavItemText>Zendesk Support</NavItemText>\n      </Nav.Item>\n      <Nav.List>\n        <Nav.Item isCurrent>\n          <Nav.ItemIcon>\n            <HomeIcon />\n          </Nav.ItemIcon>\n          <NavItemText>Home</NavItemText>\n        </Nav.Item>\n      </Nav.List>\n      <Nav.Item hasBrandmark>\n        <Nav.ItemIcon>\n          <BrandmarkIcon />\n        </Nav.ItemIcon>\n        <Nav.ItemText>Brandmark</Nav.ItemText>\n      </Nav.Item>\n    </Nav>\n    <Body>\n      <Header>...</Header>\n      <Content>\n        <Main>Lorem ipsum...</Main>\n      </Content>\n    </Body>\n  </Chrome>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/chrome"
+    },
+    "colorpickers": {
+      "package": "colorpickers",
+      "npm": "@zendeskgarden/react-colorpickers",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "ColorPicker and ColorSwatch. Use to select colors.",
+      "components": [
+        "ColorPicker",
+        "ColorPickerDialog",
+        "ColorSwatch",
+        "ColorSwatchDialog"
+      ],
+      "typeExports": [
+        "IColor",
+        "IColorPickerProps",
+        "IColorPickerDialogProps",
+        "ILabeledColor",
+        "IColorSwatchProps",
+        "IColorSwatchDialogProps"
+      ],
+      "interfaces": [
+        "IColor",
+        "IHSVColor",
+        "IHSLColor",
+        "IRGBColor",
+        "IColorPickerProps",
+        "IColorPickerDialogProps",
+        "ILabeledColor",
+        "IColorSwatchProps",
+        "IColorSwatchDialogProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { ITooltipDialogProps } from '@zendeskgarden/react-modals';\nimport { HTMLAttributes } from 'react';\n\nexport interface IColor {\n  hex: string;\n  hue: number;\n  saturation: number;\n  lightness: number;\n  red: number;\n  green: number;\n  blue: number;\n  alpha: number;\n}\n\nexport interface IHSVColor {\n  h: number;\n  s: number;\n  v: number;\n}\n\nexport interface IHSLColor {\n  h: number;\n  s: number;\n  l: number;\n  a?: number;\n}\n\nexport interface IRGBColor {\n  red: number;\n  green: number;\n  blue: number;\n  alpha?: number;\n}\n\nexport interface IColorPickerProps extends Omit<\n  HTMLAttributes<HTMLDivElement>,\n  'color' | 'onChange'\n> {\n  /** Sets the color for an uncontrolled color picker */\n  defaultColor?: string | IColor;\n  /** Sets the color for a controlled color picker */\n  color?: string | IColor;\n  /** Hides alpha transparency fields */\n  isOpaque?: boolean;\n  /**\n   * Handles color picker changes\n   *\n   * @param {Object} color A color picker state\n   */\n  onChange?: (color: IColor) => void;\n  /** Replaces label text within the color picker */\n  labels?: {\n    hueSlider?: string;\n    alphaSlider?: string;\n    hex?: string;\n    red?: string;\n    green?: string;\n    blue?: string;\n    alpha?: string;\n  };\n  /** @ignore */\n  autofocus?: boolean;\n}\n\nexport interface IColorPickerDialogProps extends IColorPickerProps {\n  /**\n   * Handles close actions. Can be triggered from the backdrop.\n   *\n   * @param {Object} color A color picker state\n   */\n  onClose?: (color: IColor) => void;\n  /** Adjusts the placement of the color dialog */\n  placement?: ITooltipDialogProps['placement'];\n  /** Disables the color dialog button */\n  disabled?: boolean;\n  /**\n   * Sets the `z-index` of the color dialog\n   */\n  zIndex?: ITooltipDialogProps['zIndex'];\n  /**\n   * Adds an arrow to the color dialog\n   */\n  hasArrow?: ITooltipDialogProps['hasArrow'];\n  /**\n   * Animates the color dialog\n   */\n  isAnimated?: ITooltipDialogProps['isAnimated'];\n  /**\n   * Opens the dialog in a controlled color picker dialog\n   */\n  isOpen?: boolean;\n  /**\n   * Applies inset `box-shadow` styling on focus\n   */\n  focusInset?: boolean;\n  /**\n   * Passes HTML attributes to the color dialog button element\n   */\n  buttonProps?: HTMLAttributes<HTMLButtonElement>;\n  /**\n   * Handles dialog changes\n   *\n   * @param {Object} changes The changed dialog state\n   */\n  onDialogChange?: (changes: { isOpen: boolean }) => void;\n}\n\nexport interface ILabeledColor {\n  value: string;\n  label: string;\n}\n\nexport interface IColorSwatchProps extends Omit<HTMLAttributes<HTMLTableElement>, 'onSelect'> {\n  /** Sets the name used to reference the value of the control */\n  name: string;\n  /** Sets the two-dimension array of labeled HEX and RGB/A string colors */\n  colors: { value: string; label: string }[][];\n  /** Determines if the color swatch is backed by radio (default) or checkbox inputs */\n  isCheckboxGroup?: boolean;\n  /** Sets the selected row index in a controlled color swatch */\n  selectedRowIndex?: number | null;\n  /** Sets the selected column index in a controlled color swatch */\n  selectedColIndex?: number | null;\n  /** Sets the default selected row index in an uncontrolled color swatch */\n  defaultSelectedRowIndex?: number;\n  /** Sets the default selected column index in an uncontrolled color swatch */\n  defaultSelectedColIndex?: number;\n  /** Handles color swatch select event */\n  onSelect?: (rowIndex: number | null, colIndex: number | null) => void;\n}\n\nexport interface IColorSwatchDialogProps extends IColorSwatchProps {\n  /** Adjusts the placement of the color dialog */\n  placement?: ITooltipDialogProps['placement'];\n  /** Disables the color dialog button */\n  disabled?: boolean;\n  /** Sets the `z-index` of the color dialog */\n  zIndex?: ITooltipDialogProps['zIndex'];\n  /** Adds an arrow to the color dialog */\n  hasArrow?: ITooltipDialogProps['hasArrow'];\n  /** Animates the color dialog */\n  isAnimated?: ITooltipDialogProps['isAnimated'];\n  /** Applies inset `box-shadow` styling on focus */\n  focusInset?: boolean;\n  /** Passes HTML attributes to the color dialog button element */\n  buttonProps?: HTMLAttributes<HTMLButtonElement>;\n  /** Opens the dialog in a controlled color swatch dialog */\n  isOpen?: boolean;\n  /**\n   * Handles dialog changes\n   *\n   * @param {Object} changes The changed dialog state\n   */\n  onDialogChange?: (changes: { isOpen: boolean }) => void;\n}\n",
+      "readme": "# @zendeskgarden/react-colorpickers [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-colorpickers)](https://www.npmjs.com/package/@zendeskgarden/react-colorpickers)\n\nThis package includes components related to color pickers in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-colorpickers\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### ColorPicker\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { ColorPicker } from '@zendeskgarden/react-colorpickers';\n\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <ColorPicker defaultColor=\"#17494D\">\n</ThemeProvider>\n```\n\n### ColorPickerDialog\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { ColorPickerDialog } from '@zendeskgarden/react-colorpickers';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <ColorPickerDialog defaultColor=\"#17494D\" buttonProps={{ 'aria-label': 'Example label' }} />\n</ThemeProvider>;\n```\n\n### ColorSwatch\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { ColorSwatch } from '@zendeskgarden/react-colorpickers';\n\nconst colors = [\n  [\n    { label: 'Green-800', value: '#0b3b29' },\n    { label: 'Green-700', value: '#186146' }\n  ],\n  [\n    { label: 'Green-600', value: '#038153' },\n    { label: 'Green-500', value: '#228f67' }\n  ]\n];\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <ColorSwatch colors={colors} name=\"swatch\" />\n</ThemeProvider>;\n```\n\n### ColorSwatchDialog\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { ColorSwatchDialog } from '@zendeskgarden/react-colorpickers';\n\nconst colors = [\n  [\n    { label: 'Green-800', value: '#0b3b29' },\n    { label: 'Green-700', value: '#186146' }\n  ],\n  [\n    { label: 'Green-600', value: '#038153' },\n    { label: 'Green-500', value: '#228f67' }\n  ]\n];\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <ColorSwatchDialog\n    colors={colors}\n    name=\"swatch-dialog\"\n    buttonProps={{ 'aria-label': 'Example label' }}\n  />\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/colorpickers"
+    },
+    "datepickers": {
+      "package": "datepickers",
+      "npm": "@zendeskgarden/react-datepickers",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "DatePicker, DatePickerRange, Datepicker inputs. Use for date/time entry.",
+      "components": [
+        "DatePicker",
+        "DatePickerRange"
+      ],
+      "typeExports": [
+        "IDatePickerProps",
+        "IDatePickerRangeProps"
+      ],
+      "interfaces": [
+        "GardenPlacement",
+        "IDatePickerProps",
+        "IDatePickerRangeProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { PLACEMENT as BASE_PLACEMENT } from '@zendeskgarden/react-theming';\nimport { HTMLAttributes, ReactElement } from 'react';\n\nexport const WEEK_STARTS_ON = [0, 1, 2, 3, 4, 5, 6] as const;\n\nexport const PLACEMENT = ['auto', ...BASE_PLACEMENT] as const;\n\nexport type GardenPlacement = (typeof PLACEMENT)[number];\n\nexport interface IDatePickerProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange'> {\n  /** Appends the calendar to the element provided */\n  appendToNode?: Element | DocumentFragment;\n  /**\n   * Sets the selected date\n   */\n  value?: Date;\n  /**\n   * Handles date change\n   *\n   * @param {Date} date The selected date\n   */\n  onChange?: (date: Date) => void;\n  /**\n   * Customizes the input element's date formatting\n   *\n   *  @param {Date} date The selected date\n   *  @returns {string} a formatted date string\n   */\n  formatDate?: (date: Date) => string;\n  /**\n   * Applies locale-based formatting.\n   * Accepts all valid `Intl` [locales](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl#Locale_identification_and_negotiation).\n   */\n  locale?: string;\n  /**\n   * Overrides the locale default start day of week\n   */\n  weekStartsOn?: (typeof WEEK_STARTS_ON)[number];\n  /**\n   * Disables dates before this value on the calendar\n   */\n  minValue?: Date;\n  /**\n   * Disables dates after this value on the calendar\n   */\n  maxValue?: Date;\n  /**\n   * Applies compact styling\n   */\n  isCompact?: boolean;\n  /**\n   * Overrides default date parsing\n   *\n   * @param {string} inputValue A localized input value\n   * @returns {Date} the parsed date\n   */\n  customParseDate?: (inputValue: string) => Date;\n  /**\n   * Defines the ref key used to position the calendar\n   */\n  refKey?: string;\n  /**\n   * Adjusts the position of the calendar\n   **/\n  placement?: GardenPlacement;\n  /**\n   * Animates the calendar\n   */\n  isAnimated?: boolean;\n  /**\n   * Sets the `z-index` of the calendar\n   */\n  zIndex?: number;\n  /** @ignore ReactNode override */\n  children: ReactElement;\n}\n\nexport interface IDatePickerRangeProps extends Pick<\n  IDatePickerProps,\n  'locale' | 'weekStartsOn' | 'minValue' | 'maxValue' | 'formatDate' | 'isCompact'\n> {\n  /**\n   * Sets the start date\n   */\n  startValue?: Date;\n  /**\n   * Sets the end date\n   */\n  endValue?: Date;\n  /**\n   * Handles start and end date changes\n   *\n   * @param {Object} values The selected dates\n   * @param {Date} [values.startValue] Optional start date\n   * @param {Date} [values.endValue] Optional end date\n   */\n  onChange?: (values: { startValue?: Date; endValue?: Date }) => void;\n  /**\n   * Overrides the default date parsing\n   *\n   * @param {string} inputValue A date string\n   * @returns {Date} the parsed date\n   */\n  customParseDate?: (inputValue?: string) => Date;\n}\n",
+      "readme": "# @zendeskgarden/react-datepickers [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-datepickers)](https://www.npmjs.com/package/@zendeskgarden/react-datepickers)\n\nThis package includes components relating to datepickers in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-datepickers\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\nThe `<DatePicker>` component allows users to select a\ndate with a dropdown selection or a variety of localizable\ntext formats. Internally, the `<DatePicker>` uses [date-fns](https://date-fns.org/)\nfor it's date calculations and the [Intl.DateTimeFormat utility](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DateTimeFormat)\nfor localization support.\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Field, Input } from '@zendeskgarden/react-forms';\nimport { DatePicker } from '@zendeskgarden/react-datepickers';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Field>\n    <Field.Label>Example datepicker</Field.Label>\n    <DatePicker value={new Date()} onChange={selectedDate => console.log(selectedDate)}>\n      <Input />\n    </DatePicker>\n  </Field>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/datepickers"
+    },
+    "draggable": {
+      "package": "draggable",
+      "npm": "@zendeskgarden/react-draggable",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Draggable and Sortable primitives (drag-and-drop). Use for reorderable lists.",
+      "components": [
+        "Draggable",
+        "DraggableList",
+        "Dropzone"
+      ],
+      "typeExports": [
+        "IDraggableProps",
+        "IDraggableListProps",
+        "IDropzoneProps"
+      ],
+      "interfaces": [
+        "IDraggableProps",
+        "IDraggableListProps",
+        "IDropzoneProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes } from 'react';\n\nexport interface IDraggableProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies inset `box-shadow` styling on focus */\n  focusInset?: boolean;\n  /** Removes borders */\n  isBare?: boolean;\n  /** Applies compact spacing */\n  isCompact?: boolean;\n  /** Disables the draggable */\n  isDisabled?: boolean;\n  /** Applies grab styling */\n  isGrabbed?: boolean;\n  /** Hides content and applies placeholder background styling */\n  isPlaceholder?: boolean;\n  /** Updates the element's HTML tag */\n  tag?: any;\n}\n\nexport interface IDraggableListProps extends HTMLAttributes<HTMLUListElement> {\n  /** Flows list items inline */\n  isHorizontal?: boolean;\n}\n\nexport interface IDropzoneProps extends HTMLAttributes<HTMLDivElement> {\n  /** Indicates a drop is possible during a drag */\n  isActive?: boolean;\n  /** Aligns dropzone message content vertically */\n  isVertical?: boolean;\n  /** Applies danger styling */\n  isDanger?: boolean;\n  /** Disables the dropzone */\n  isDisabled?: boolean;\n  /** Indicates a draggable is on a droppable area */\n  isHighlighted?: boolean;\n  /** Updates the element's HTML tag */\n  tag?: any;\n}\n",
+      "readme": "# @zendeskgarden/react-draggable [![npm version][npm version badge]][npm version link]\n\n[npm version badge]: https://flat.badgen.net/npm/v/@zendeskgarden/react-draggable\n[npm version link]: https://www.npmjs.com/package/@zendeskgarden/react-draggable\n\nThis package includes components related to drag and drop in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-draggable\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Draggable, DraggableList, Dropzone } from '@zendeskgarden/react-draggable';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <DraggableList>\n    <DraggableList.Item>\n      <Draggable>\n        <Draggable.Grip />\n        <Draggable.Content>Petunia</Draggable.Content>\n      </Draggable>\n    </DraggableList.Item>\n  </DraggableList>\n\n  <Dropzone>\n    <Dropzone.Message>Drag items here</Dropzone.Message>\n  </Dropzone>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/draggable"
+    },
+    "dropdowns": {
+      "package": "dropdowns",
+      "npm": "@zendeskgarden/react-dropdowns",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Menu, Combobox, Autocomplete, Select, Field option lists (the current dropdowns API). Use for menus and selection inputs.",
+      "components": [
+        "Combobox",
+        "Field",
+        "Hint",
+        "Label",
+        "Message",
+        "Option",
+        "OptGroup",
+        "Tag",
+        "Menu",
+        "ItemGroup",
+        "Item",
+        "Separator",
+        "VALIDATION"
+      ],
+      "typeExports": [
+        "/** combobox */\n  IComboboxProps",
+        "ILabelProps",
+        "IMessageProps",
+        "IOptionProps",
+        "IOptGroupProps",
+        "ITagProps",
+        "ISelectedOption",
+        "OptionValue",
+        "/** menu */\n  IItemProps",
+        "IItemGroupProps",
+        "IMenuProps",
+        "ISelectedItem"
+      ],
+      "interfaces": [
+        "ISelectedItem",
+        "ISelectedOption",
+        "OptionValue",
+        "OptionType",
+        "Validation",
+        "GardenPlacement",
+        "IComboboxProps",
+        "ILabelProps",
+        "IListboxProps",
+        "IMessageProps",
+        "IOptionProps",
+        "IOptGroupProps",
+        "ITagProps",
+        "ITagGroupProps",
+        "IMenuListProps",
+        "IMenuProps",
+        "IItemProps",
+        "IItemGroupProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport {\n  IOption,\n  IUseComboboxProps,\n  IUseComboboxReturnValue\n} from '@zendeskgarden/container-combobox';\nimport {\n  IUseMenuProps,\n  ISelectedItem as IUseMenuSelectedItem\n} from '@zendeskgarden/container-menu';\nimport { IButtonProps } from '@zendeskgarden/react-buttons';\nimport { VALIDATION } from '@zendeskgarden/react-forms';\nimport { ITagProps as IBaseTagProps } from '@zendeskgarden/react-tags';\nimport { PLACEMENT as PLACEMENT_BASE } from '@zendeskgarden/react-theming';\nimport {\n  HTMLAttributes,\n  InputHTMLAttributes,\n  LabelHTMLAttributes,\n  LiHTMLAttributes,\n  ReactElement,\n  ReactNode,\n  RefObject\n} from 'react';\n\nexport type ISelectedItem = IUseMenuSelectedItem;\n\nexport type ISelectedOption = Extract<IUseComboboxReturnValue['selection'], IOption>;\n\nexport type OptionValue = Exclude<IUseComboboxReturnValue['activeValue'], undefined>;\n\nexport const OPTION_TYPE = ['add', 'danger', 'next', 'previous'] as const;\n\nexport type OptionType = (typeof OPTION_TYPE)[number];\n\nexport type Validation = (typeof VALIDATION)[number];\n\nexport const PLACEMENT = ['auto', ...PLACEMENT_BASE] as const;\n\nexport type GardenPlacement = (typeof PLACEMENT)[number];\n\nexport interface IComboboxProps extends HTMLAttributes<HTMLDivElement> {\n  /** Sets the currently active option index in a controlled combobox */\n  activeIndex?: number;\n  /** Sets the default active option index in an uncontrolled combobox */\n  defaultActiveIndex?: number;\n  /** Determines default listbox expansion in an uncontrolled combobox */\n  defaultExpanded?: boolean;\n  /** Accepts an \"end\" icon to display */\n  endIcon?: ReactElement;\n  /** Applies inset `box-shadow` styling on focus */\n  focusInset?: boolean;\n  /** Identifies the combobox */\n  id?: string;\n  /** Passes HTML attributes to the input element */\n  inputProps?: InputHTMLAttributes<HTMLInputElement>;\n  /** Sets the input value in a controlled combobox */\n  inputValue?: string;\n  /** Indicates that the combobox provides autocompletion  */\n  isAutocomplete?: boolean;\n  /** Removes borders and padding */\n  isBare?: boolean;\n  /** Applies compact styling */\n  isCompact?: boolean;\n  /** Indicates that the combobox is not interactive */\n  isDisabled?: boolean;\n  /** Determines whether the combobox is editable or select-only */\n  isEditable?: boolean;\n  /** Determines listbox expansion in a controlled combobox */\n  isExpanded?: boolean;\n  /** Determines whether multiple options can be selected */\n  isMultiselectable?: boolean;\n  /** Appends the lisbox to the element provided */\n  listboxAppendToNode?: Element | DocumentFragment;\n  /** Specifies the listbox `aria-label` */\n  listboxAriaLabel?: string;\n  /** Sets the `max-height` of the listbox */\n  listboxMaxHeight?: string;\n  /** Overrides the `min-height` of the listbox */\n  listboxMinHeight?: string | null;\n  /** Sets the `z-index` of the listbox */\n  listboxZIndex?: number;\n  /** Overrides the `max-height` of the combobox */\n  maxHeight?: string;\n  /** Determines the maximum number of tags displayed when a multiselectable combobox is collapsed */\n  maxTags?: number;\n  /**\n   * Handles combobox state changes\n   *\n   * @param {string} changes.type The event type that triggered the change\n   * @param {boolean} [changes.isExpanded] The updated listbox expansion\n   * @param {OptionValue|OptionValue[]} [changes.selectionValue] The updated selection value(s)\n   * @param {string} [changes.inputValue] The updated input value\n   * @param {number} [changes.activeIndex] The updated active option index\n   */\n  onChange?: IUseComboboxProps['onChange'];\n  /** Defines text that appears in the element when no items are selected */\n  placeholder?: string;\n  /**\n   * Overrides the \"+ N more\" text displayed when the total number of multiselectable tags exceeds `maxTags`\n   *\n   * @param {number} value The number of hidden items\n   *\n   * @returns {string} a replacement for the \"+ N more\" text\n   */\n  renderExpandTags?: (value: number) => string;\n  /**\n   * Overrides the `inputValue` or `placeholder` text displayed when the combobox is not focused\n   *\n   * @param {object|object[]} options.selection Current selection\n   * @param {string} [options.inputValue] Current input value\n   *\n   * @returns {Object} content for the current combobox value\n   */\n  renderValue?: (options: {\n    selection: IUseComboboxReturnValue['selection'];\n    inputValue?: IUseComboboxReturnValue['inputValue'];\n  }) => ReactNode;\n  /** Sets the selection value (or `isMultiselectable` values) in a controlled combobox */\n  selectionValue?: IUseComboboxProps['selectionValue'];\n  /** Accepts a \"start\" icon to display */\n  startIcon?: ReactElement;\n  /** Applies validation state styling */\n  validation?: Validation;\n}\n\nexport interface ILabelProps extends LabelHTMLAttributes<HTMLLabelElement> {\n  /** Applies regular (non-bold) font weight */\n  isRegular?: boolean;\n  /** Hides the label visually without hiding it from screen readers */\n  hidden?: LabelHTMLAttributes<HTMLLabelElement>['hidden'];\n}\n\nexport interface IListboxProps extends HTMLAttributes<HTMLUListElement> {\n  /** Appends the lisbox to the element provided */\n  appendToNode?: Element | DocumentFragment;\n  /** Applies compact styling */\n  isCompact?: boolean;\n  /** Determines listbox expansion */\n  isExpanded?: boolean;\n  /** Sets the `max-height` of the listbox */\n  maxHeight?: IComboboxProps['listboxMaxHeight'];\n  /** Sets the `min-height` of the listbox */\n  minHeight?: IComboboxProps['listboxMinHeight'];\n  /** Provides ref access to the associated trigger element */\n  triggerRef: RefObject<HTMLElement>;\n  /** Sets the `z-index` of the listbox */\n  zIndex?: IComboboxProps['listboxZIndex'];\n}\n\nexport interface IMessageProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies validation state styling */\n  validation?: Validation;\n  /** Defines the `aria-label` for the validation icon */\n  validationLabel?: string;\n}\n\nexport interface IOptionProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'value'> {\n  /** Indicates that one or more sub-options are selected (only valid for `type=\"next\"`) */\n  hasSelection?: boolean;\n  /** Accepts an icon to display */\n  icon?: ReactElement;\n  /** Indicates that the option is not interactive */\n  isDisabled?: boolean;\n  /** Hides the option while retaining props (i.e. selected `tagProps`) */\n  isHidden?: boolean;\n  /** Determines the initial selection state for the option */\n  isSelected?: boolean;\n  /** Sets the text label of the option (defaults to `value`) */\n  label?: string;\n  /** Overrides props (including `children`) for the associated tag */\n  tagProps?: Omit<ITagProps, 'option'>;\n  /** Determines the option type */\n  type?: OptionType;\n  /** Sets the unique value that is returned upon selection */\n  value: string;\n}\n\nexport interface IOptGroupProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'content'> {\n  /** Renders content for the option group (defaults to `label` text) */\n  content?: ReactNode;\n  /** Accepts an icon to display */\n  icon?: ReactElement;\n  /** Sets the text label of the option group */\n  legend?: string;\n}\n\nexport interface ITagProps extends Omit<IBaseTagProps, 'isRound' | 'size'> {\n  /** @ignore Associates this tag with the given option (internal only) */\n  option: IOption;\n  /** Sets the `aria-label` and tooltip for the remove icon */\n  removeLabel?: string;\n  /** @ignore Sets the `z-index` of the tooltip */\n  tooltipZIndex?: number;\n}\n\nexport interface ITagGroupProps {\n  /** Indicates that the tag group is not interactive */\n  isDisabled?: boolean;\n  /** Determines whether the combobox is editable or select-only */\n  isEditable?: boolean;\n  /** Determines tag group expansion */\n  isExpanded: boolean;\n  /** Indicates the `z-index` of the listbox */\n  listboxZIndex?: number;\n  /** Determines the maximum number of tags displayed when the tag group is collapsed */\n  maxTags: number;\n  /** Provides tag props for the associated option */\n  optionTagProps: Record<string, IOptionProps['tagProps']>;\n  /** Provides the current selection */\n  selection: IOption[];\n}\n\nexport interface IMenuListProps extends HTMLAttributes<HTMLUListElement> {\n  /** Appends the menu to the element provided */\n  appendToNode?: Element | DocumentFragment;\n  /** Attaches an arrow that points towards the menu trigger */\n  hasArrow?: boolean;\n  /** Applies compact styling */\n  isCompact?: boolean;\n  /** Determines menu expansion */\n  isExpanded?: boolean;\n  /** Provides a list of acceptable fallback placements */\n  fallbackPlacements?: Exclude<GardenPlacement, 'auto'>[];\n  /** Sets the `max-height` of the menu */\n  maxHeight?: IListboxProps['maxHeight'];\n  /** Sets the `min-height` of the menu */\n  minHeight?: IListboxProps['minHeight'];\n  /** Adjusts the placement of the menu */\n  placement?: GardenPlacement;\n  /** Provides ref access to the associated trigger element */\n  triggerRef: RefObject<HTMLElement>;\n  /** Sets the `z-index` of the menu */\n  zIndex?: IListboxProps['zIndex'];\n}\n\nexport interface IMenuProps extends HTMLAttributes<HTMLUListElement> {\n  /** Appends the menu to the element provided */\n  appendToNode?: IMenuListProps['appendToNode'];\n  /** Sets the menu button label or renders a provided trigger element */\n  button: string | ((props: IButtonProps & { ref: RefObject<HTMLButtonElement> }) => ReactNode);\n  /** Provides additional props to the menu [Button](/components/button#button) */\n  buttonProps?: IButtonProps;\n  /** Determines default expansion in an uncontrolled menu */\n  defaultExpanded?: IUseMenuProps['defaultExpanded'];\n  /** Determines focused value on menu initialization */\n  defaultFocusedValue?: IUseMenuProps['defaultFocusedValue'];\n  /** Provides a list of acceptable fallback placements */\n  fallbackPlacements?: IMenuListProps['fallbackPlacements'];\n  /** Sets the focused value in a controlled menu */\n  focusedValue?: IUseMenuProps['focusedValue'];\n  /** Attaches an arrow that points towards the menu trigger */\n  hasArrow?: IMenuListProps['hasArrow'];\n  /** Applies compact styling */\n  isCompact?: IMenuListProps['isCompact'];\n  /** Sets the expansion in a controlled menu */\n  isExpanded?: IUseMenuProps['isExpanded'];\n  /** Sets the `max-height` of the menu */\n  maxHeight?: IListboxProps['maxHeight'];\n  /** Sets the `min-height` of the menu */\n  minHeight?: IListboxProps['minHeight'];\n  /**\n   * Handles menu state changes\n   *\n   * @param {string} changes.type The event type that triggered the change\n   * @param {boolean} [changes.isExpanded] The updated menu expansion\n   * @param {ISelectedItem[]} [changes.selectedItems] The updated selection values\n   * @param {string | null} [changes.focusedValue] The updated focused value\n   */\n  onChange?: IUseMenuProps['onChange'];\n  /** Returns keyboard focus to the element that triggered the menu */\n  restoreFocus?: IUseMenuProps['restoreFocus'];\n  /** Sets the selected items in a controlled menu */\n  selectedItems?: IUseMenuProps['selectedItems'];\n  /** Adjusts the placement of the menu */\n  placement?: GardenPlacement;\n  /** Sets the `z-index` of the menu */\n  zIndex?: IListboxProps['zIndex'];\n}\n\nexport interface IItemProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'value'> {\n  /** Accepts an icon to display */\n  icon?: ReactElement;\n  /** Indicates that the item is not interactive */\n  isDisabled?: boolean;\n  /** Opens the `href` externally */\n  isExternal?: boolean;\n  /** Determines the initial selection state for the item */\n  isSelected?: boolean;\n  /** Provides the text label of the item (defaults to `value`) */\n  label?: string;\n  /** Sets the item as an anchor */\n  href?: string;\n  /** Associates the item in a radio item group */\n  name?: string;\n  /** Determines the item type */\n  type?: OptionType;\n  /** Sets the unique value that is returned upon selection */\n  value: string;\n}\n\nexport interface IItemGroupProps extends Omit<LiHTMLAttributes<HTMLLIElement>, 'content'> {\n  /** Renders content for the item group (defaults to `legend` text) */\n  content?: ReactNode;\n  /** Accepts an icon to display */\n  icon?: ReactElement;\n  /** Sets the text label of the item group */\n  legend?: string;\n  /** Configures the selection type for items within the group */\n  type?: ISelectedItem['type'];\n}\n",
+      "readme": "# @zendeskgarden/react-dropdowns [![npm version][npm version badge]][npm version link]\n\n[npm version badge]: https://flat.badgen.net/npm/v/@zendeskgarden/react-dropdowns\n[npm version link]: https://www.npmjs.com/package/@zendeskgarden/react-dropdowns\n\nThis package includes components related to dropdowns in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-dropdowns\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Combobox\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Field, Label, Combobox, Option } from '@zendeskgarden/react-dropdowns';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Field>\n    <Field.Label>Label</Field.Label>\n    <Combobox>\n      <Option value=\"One\" />\n      <Option value=\"Two\" />\n      <Option value=\"Three\" />\n    </Combobox>\n  </Field>\n</ThemeProvider>;\n```\n\nBeyond this basic example, Garden's `Combobox` offers a comprehensive set of\nWAI-ARIA compliant combobox features. Key capabilities include:\n\n- **Controllable**: The `Combobox` functions in both [uncontrolled and\n  controlled](https://react.dev/learn/sharing-state-between-components#controlled-and-uncontrolled-components)\n  modes. Controlled mode enables aspects, such as input value, selection value(s),\n  listbox expansion, and current option active index, to share and adapt to the\n  surrounding UI.\n- **Autocomplete-able**: Denotes the `Combobox` with [list\n  autocomplete](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-autocomplete-list/).\n  Filtering implementation is left to the API consumer.\n- **Selectable**: The `Combobox` API ensures the selection of one or more\n  listbox option values, while also supporting the W3C [no autocomplete\n  example](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-autocomplete-none/)\n  for use cases like search.\n- **Multi-selectable**: This feature enables the `Combobox` to provide WAI-ARIA\n  [multi-select\n  listbox](https://www.w3.org/WAI/ARIA/apg/patterns/listbox/examples/listbox-rearrangeable/#ex2_label)\n  functionality with option-as-tag value rendering.\n- **Non-editable**: The `Combobox` supports [select-only\n  mode](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/examples/combobox-select-only/),\n  where the user cannot modify the `<input>`.\n- **Filterable**: The `Combobox` offers various filtering methods for listbox\n  options. Details of the filtering implementation are left to the API consumer.\n- **Markup-able**: The `Combobox` can convert input value text to rich HTML\n  markup on blur in single-selection mode.\n- **Decorate-able**: The `Combobox` allows adding start and end media (SVG icons).\n  Certain features will replace end media with Garden's standard dropdown chevron\n  treatment.\n- **Group-able**: The `Combobox` API utilizes fully accessible `<OptGroup>`\n  components for grouping, similar to the corresponding HTML element.\n- **Compactible**: Like other form elements, the `Combobox` supports compact\n  sizing.\n- **Field-able**: The `Combobox` builds on Garden’s Field API context to\n  establish accessible relationships with corresponding Label, Hint, and Message\n  components.\n- **Validate-able**: The `Combobox` provides validation styling and\n  accessibility comparable to other Garden form components.\n- **RTL theme-able**: Functionality displays and operates correctly for\n  left-to-right and right-to-left layouts.\n\n### Menu\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Menu, Item } from '@zendeskgarden/react-dropdowns';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Menu button=\"Choose an item\">\n    <Item value=\"item-01\" label=\"One\" />\n    <Item value=\"item-02\" label=\"Two\" />\n    <Item value=\"item-03\" label=\"Three\" />\n  </Menu>\n</ThemeProvider>;\n```\n\nVisit [storybook](https://zendeskgarden.github.io/react-components) for live examples.\n",
+      "docs": "https://garden.zendesk.com/components/dropdowns"
+    },
+    "forms": {
+      "package": "forms",
+      "npm": "@zendeskgarden/react-forms",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Field, Input, Textarea, Checkbox, Radio, Toggle, Select (native), FileUpload, Range, labels/hints/messages. Core of any data-entry UI.",
+      "components": [
+        "Field",
+        "Fieldset",
+        "Hint",
+        "Label",
+        "Message",
+        "Checkbox",
+        "Input",
+        "Radio",
+        "Range",
+        "Textarea",
+        "Toggle",
+        "Select",
+        "Tiles",
+        "InputGroup",
+        "FileUpload",
+        "FileList",
+        "File",
+        "FauxInput",
+        "MediaInput",
+        "VALIDATION",
+        "type IFieldsetProps",
+        "type ILabelProps",
+        "type IMessageProps",
+        "type ICheckboxProps",
+        "type IRadioProps",
+        "type IToggleProps",
+        "type IInputProps",
+        "type ITextareaProps",
+        "type ISelectProps",
+        "type IFileUploadProps",
+        "type IFileProps",
+        "type IRangeProps",
+        "type IInputGroupProps",
+        "type ITilesProps",
+        "type ITilesTileProps",
+        "type IFauxInputProps",
+        "IFauxInputStartIconProps",
+        "IFauxInputEndIconProps",
+        "type IMediaInputProps"
+      ],
+      "typeExports": [],
+      "interfaces": [
+        "Validation",
+        "FileValidation",
+        "FileType",
+        "IFieldsetProps",
+        "IInputGroupProps",
+        "ILabelProps",
+        "IMessageProps",
+        "IMessageIconProps",
+        "IRadioProps",
+        "IToggleProps",
+        "ICheckboxProps",
+        "IInputProps",
+        "IMediaInputProps",
+        "IFauxInputProps",
+        "IFauxInputIconProps",
+        "ITextareaProps",
+        "ISelectProps",
+        "IFileUploadProps",
+        "IFileProps",
+        "IRangeProps",
+        "ITilesProps",
+        "ITilesTileProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport {\n  FieldsetHTMLAttributes,\n  HTMLAttributes,\n  InputHTMLAttributes,\n  LabelHTMLAttributes,\n  ReactElement,\n  SelectHTMLAttributes,\n  SVGAttributes,\n  TextareaHTMLAttributes\n} from 'react';\n\nexport const VALIDATION = ['success', 'warning', 'error'] as const;\n\nexport const FILE_VALIDATION = ['success', 'error'] as const;\n\nexport const FILE_TYPE = [\n  'pdf',\n  'zip',\n  'image',\n  'document',\n  'spreadsheet',\n  'presentation',\n  'generic'\n] as const;\n\nexport type Validation = (typeof VALIDATION)[number];\n\nexport type FileValidation = (typeof FILE_VALIDATION)[number];\n\nexport type FileType = (typeof FILE_TYPE)[number];\n\nexport interface IFieldsetProps extends FieldsetHTMLAttributes<HTMLFieldSetElement> {\n  /** Applies compact styling */\n  isCompact?: boolean;\n}\n\nexport interface IInputGroupProps\n  extends Pick<IFieldsetProps, 'isCompact'>, HTMLAttributes<HTMLDivElement> {}\n\nexport interface ILabelProps extends LabelHTMLAttributes<HTMLLabelElement> {\n  /** Applies regular (non-bold) font weight */\n  isRegular?: boolean;\n  /** Hides the label visually without hiding it from screen readers */\n  hidden?: LabelHTMLAttributes<HTMLLabelElement>['hidden'];\n}\n\nexport interface IMessageProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies validation state styling */\n  validation?: Validation;\n  /** Defines the aria-label for the validation icon */\n  validationLabel?: string;\n}\n\nexport interface IMessageIconProps {\n  /** Applies validation state styling */\n  validation?: Validation;\n}\n\nexport interface IRadioProps extends InputHTMLAttributes<HTMLInputElement> {\n  /** Applies compact styling */\n  isCompact?: IFieldsetProps['isCompact'];\n}\n\n// eslint-disable-next-line @typescript-eslint/no-empty-object-type\nexport interface IToggleProps extends IRadioProps {}\n\nexport interface ICheckboxProps extends IRadioProps {\n  /**\n   * Sets the checkbox state to\n   * [indeterminate](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/checkbox#Indeterminate_state_checkboxes)\n   */\n  indeterminate?: boolean;\n}\n\nexport interface IInputProps extends IRadioProps {\n  /** Removes borders and padding */\n  isBare?: boolean;\n  /** Applies inset `box-shadow` styling on focus */\n  focusInset?: boolean;\n  /** Applies validation state styling */\n  validation?: Validation;\n}\n\nexport interface IMediaInputProps extends IInputProps {\n  /** Accepts a \"start\" icon to display */\n  start?: ReactElement;\n  /** Accepts an \"end\" icon to display */\n  end?: ReactElement;\n  /** Applies props to the wrapping [FauxInput](#fauxinput) element */\n  wrapperProps?: any;\n  /** Applies a ref to the wrapping [FauxInput](#fauxinput) element */\n  wrapperRef?: any;\n}\n\nexport interface IFauxInputProps\n  extends\n    Pick<IInputProps, 'isCompact' | 'isBare' | 'focusInset' | 'validation'>,\n    HTMLAttributes<HTMLDivElement> {\n  /** Indicates that the element is not interactive */\n  disabled?: IInputProps['disabled'];\n  /** Applies read-only styling */\n  readOnly?: IInputProps['readOnly'];\n  /** Applies focus stying */\n  isFocused?: boolean;\n  /** Applies hover stying */\n  isHovered?: boolean;\n  /** @ignore Internal use only */\n  mediaLayout?: boolean;\n}\n\nexport interface IFauxInputIconProps\n  extends Pick<IFauxInputProps, 'isHovered' | 'isFocused'>, SVGAttributes<SVGElement> {\n  /** Applies disabled styling */\n  isDisabled?: IFauxInputProps['disabled'];\n  /** Rotates icon 180 degrees */\n  isRotated?: boolean;\n}\n\nexport interface ITextareaProps\n  extends\n    Pick<IInputProps, 'isCompact' | 'isBare' | 'focusInset' | 'validation'>,\n    TextareaHTMLAttributes<HTMLTextAreaElement> {\n  /** Enables manual vertical resize */\n  isResizable?: boolean;\n  /** Defines the minimum height in rows */\n  minRows?: number;\n  /** Defines the maximum height in rows */\n  maxRows?: number;\n}\n\nexport interface ISelectProps\n  extends\n    Pick<IInputProps, 'isCompact' | 'isBare' | 'focusInset' | 'validation'>,\n    SelectHTMLAttributes<HTMLSelectElement> {}\n\nexport interface IFileUploadProps\n  extends Pick<IInputProps, 'disabled' | 'isCompact'>, HTMLAttributes<HTMLDivElement> {\n  /** Indicates that the element is not interactive */\n  disabled?: IInputProps['disabled'];\n  /** Applies drag styling */\n  isDragging?: boolean;\n}\n\nexport interface IFileProps\n  extends Pick<IInputProps, 'isCompact' | 'focusInset'>, HTMLAttributes<HTMLDivElement> {\n  /** Determines the icon to display */\n  type?: FileType;\n  /** Applies validation state styling */\n  validation?: FileValidation;\n}\n\nexport interface IRangeProps extends InputHTMLAttributes<HTMLInputElement> {\n  /** @ignore */\n  hasLowerTrack?: boolean;\n}\n\nexport interface ITilesProps extends HTMLAttributes<HTMLDivElement> {\n  /** Sets the selected value in a controlled tiles component */\n  value?: IRadioProps['value'];\n  /** Handles selection change event */\n  onChange?: IRadioProps['onChange'];\n  /** Sets the name used to reference the value of the control */\n  name: NonNullable<IRadioProps['name']>;\n  /** Centers tile content */\n  isCentered?: boolean;\n}\n\nexport interface ITilesTileProps extends HTMLAttributes<HTMLLabelElement> {\n  /** Sets the value of the tile */\n  value?: IRadioProps['value'];\n  /** Indicates that the element is not interactive */\n  disabled?: IRadioProps['disabled'];\n}\n",
+      "readme": "# @zendeskgarden/react-forms [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-forms)](https://www.npmjs.com/package/@zendeskgarden/react-forms)\n\nThis package includes components relating to native form fields in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-forms\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Field, Input } from '@zendeskgarden/react-forms';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <form>\n    <Field>\n      <Field.Label>Example Text Input</Field.Label>\n      <Field.Hint>Hint text</Field.Hint>\n      <Input placeholder=\"Accepts all native input props\" />\n      <Field.Message>Default message styling</Field.Message>\n    </Field>\n  </form>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/forms"
+    },
+    "grid": {
+      "package": "grid",
+      "npm": "@zendeskgarden/react-grid",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Responsive 12-column layout: Grid, Row, Col. Use to lay out regions.",
+      "components": [
+        "Col",
+        "Grid",
+        "Row",
+        "PaneProvider",
+        "Pane",
+        "ALIGN_ITEMS",
+        "ALIGN_SELF",
+        "DIRECTION",
+        "JUSTIFY_CONTENT",
+        "TEXT_ALIGN",
+        "SPACE",
+        "WRAP",
+        "type IPaneProviderProps",
+        "type ISplitterProps",
+        "type ISplitterButtonProps",
+        "type IColProps",
+        "type IGridProps",
+        "type IRowProps"
+      ],
+      "typeExports": [],
+      "interfaces": [
+        "AlignItems",
+        "AlignSelf",
+        "Direction",
+        "JustifyContent",
+        "TextAlign",
+        "GridNumber",
+        "Breakpoint",
+        "Space",
+        "Wrap",
+        "IColProps",
+        "IGridProps",
+        "IRowProps",
+        "Orientation",
+        "IPaneProviderProps",
+        "ISplitterProps",
+        "ISplitterButtonProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { ReactNode, HTMLAttributes, ButtonHTMLAttributes } from 'react';\nexport const ALIGN_ITEMS = ['start', 'end', 'center', 'baseline', 'stretch'] as const;\nexport const ALIGN_SELF = ['auto', ...ALIGN_ITEMS] as const;\nexport const DIRECTION = ['row', 'row-reverse', 'column', 'column-reverse'] as const;\nexport const JUSTIFY_CONTENT = ['start', 'end', 'center', 'between', 'around'] as const;\nexport const TEXT_ALIGN = ['start', 'end', 'center', 'justify'] as const;\nexport const SPACE = [false, 'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl'] as const;\nexport const WRAP = ['nowrap', 'wrap', 'wrap-reverse'] as const;\nexport const PLACEMENT = ['end', 'start', 'center'] as const;\n\nexport type AlignItems = (typeof ALIGN_ITEMS)[number];\nexport type AlignSelf = (typeof ALIGN_SELF)[number];\nexport type Direction = (typeof DIRECTION)[number];\nexport type JustifyContent = (typeof JUSTIFY_CONTENT)[number];\nexport type TextAlign = (typeof TEXT_ALIGN)[number];\nexport type GridNumber = number | string;\nexport type Breakpoint = number | string | boolean;\nexport type Space = (typeof SPACE)[number];\nexport type Wrap = (typeof WRAP)[number];\n\nexport interface IColProps extends HTMLAttributes<HTMLDivElement> {\n  /** Sets the total number of grid `columns` that the column spans on all screen sizes */\n  size?: number | string;\n  /** Defines the column size on extra-small screens.\n   *  See [breakpoints](/components/theme-object#default_theme).\n   */\n  xs?: number | string | boolean;\n  /** Defines the column size on small screens*/\n  sm?: number | string | boolean;\n  /** Defines the column size on medium screens */\n  md?: number | string | boolean;\n  /** Defines the column size on large screens */\n  lg?: number | string | boolean;\n  /** Defines the column size on extra-large screens */\n  xl?: number | string | boolean;\n  /**\n   * Applies the `align-self` flex item property, overriding `Row alignItems`\n   * vertical alignment on all screen sizes\n   */\n  alignSelf?: AlignSelf;\n  /** Applies the `align-self` flex item property to the column on extra-small screens */\n  alignSelfXs?: AlignSelf;\n  /** Applies the `align-self` flex item property to the column on small screens */\n  alignSelfSm?: AlignSelf;\n  /** Applies the `align-self` flex item property to the column on medium screens */\n  alignSelfMd?: AlignSelf;\n  /** Applies the `align-self` flex item property to the column on large screens */\n  alignSelfLg?: AlignSelf;\n  /** Applies the `align-self` flex item property to the column on extra-large screens */\n  alignSelfXl?: AlignSelf;\n  /**\n   * Applies the RTL-aware `text-align` property to the column on all screen sizes\n   */\n  textAlign?: TextAlign;\n  /** Applies the `text-align` property to the column on extra-small screens */\n  textAlignXs?: TextAlign;\n  /** Applies the `text-align` property to the column on small screens */\n  textAlignSm?: TextAlign;\n  /** Applies the `text-align` property to the column on medium screens */\n  textAlignMd?: TextAlign;\n  /** Applies the `text-align` property to the column on large screens */\n  textAlignLg?: TextAlign;\n  /** Applies the `text-align` property to the column on extra-large screens */\n  textAlignXl?: TextAlign;\n  /**\n   * Offsets the column relative to the total number of `columns` in the\n   * grid on all screen sizes\n   */\n  offset?: number | string;\n  /** Applies offset to the column on extra-small screens */\n  offsetXs?: number | string;\n  /** Applies offset to the column on small screens */\n  offsetSm?: number | string;\n  /** Applies offset to the column on medium screens */\n  offsetMd?: number | string;\n  /** Applies offset to the column on large screens */\n  offsetLg?: number | string;\n  /** Applies offset to the column on extra-large screens */\n  offsetXl?: number | string;\n  /**\n   * Applies the `order` flex item property to the column on all screen sizes. Note that\n   * order modification can introduce accessibility problems by\n   * confusing tab ordering. Rely on semantic DOM ordering whenever possible.\n   */\n  order?: number | string;\n  /** Sets the `order` flex item property of the column on extra-small screens */\n  orderXs?: number | string;\n  /** Sets the `order` flex item property of the column on small screens */\n  orderSm?: number | string;\n  /** Sets the `order` flex item property of the column on medium screens */\n  orderMd?: number | string;\n  /** Sets the `order` flex item property of the column on large screens */\n  orderLg?: number | string;\n  /** Sets the `order` flex item property of the column on extra-large screens */\n  orderXl?: number | string;\n}\n\nexport interface IGridProps extends HTMLAttributes<HTMLDivElement> {\n  /** Defines the number of individual columns that the grid contains */\n  columns?: number | string;\n  /** Specifies the grid column gutter width. The value `false` collapses the gutters */\n  gutters?: Space;\n  /** Highlights the columns for layout debugging */\n  debug?: boolean;\n}\n\nexport interface IRowProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Applies the `align-items` flex container property to the row.\n   * This affects vertical `Col` alignment on all screen sizes.\n   */\n  alignItems?: AlignItems;\n  /** Applies the `align-items` flex container property to the row on extra-small screens */\n  alignItemsXs?: AlignItems;\n  /** Applies the `align-items` flex container property to the row on small screens */\n  alignItemsSm?: AlignItems;\n  /** Applies the `align-items` flex container property to the row on medium screens */\n  alignItemsMd?: AlignItems;\n  /** Applies the `align-items` flex container property to the row on large screens */\n  alignItemsLg?: AlignItems;\n  /** Applies the `align-items` flex container property to the row on extra-large screens */\n  alignItemsXl?: AlignItems;\n  /**\n   * Applies the `justify-content` flex container property to the row.\n   * This affects horizontal `Col` alignment on all screen sizes.\n   */\n  justifyContent?: JustifyContent;\n  /** Applies the `justify-content` flex container property to the row on extra-small screens */\n  justifyContentXs?: JustifyContent;\n  /** Applies the `justify-content` flex container property to the row on small screens */\n  justifyContentSm?: JustifyContent;\n  /** Applies the `justify-content` flex container property to the row on medium screens */\n  justifyContentMd?: JustifyContent;\n  /** Applies the `justify-content` flex container property to the row on large screens */\n  justifyContentLg?: JustifyContent;\n  /** Applies the `justify-content` flex container property to the row on extra-large screens */\n  justifyContentXl?: JustifyContent;\n  /**\n   * Applies the `flex-wrap` container property to the row. This affects `Col` wrapping on\n   * all screen sizes.\n   */\n  wrap?: Wrap;\n  /** Applies the `flex-wrap` container property to the row on extra-small screens */\n  wrapXs?: Wrap;\n  /** Applies the `flex-wrap` container property to the row on small screens */\n  wrapSm?: Wrap;\n  /** Applies the `flex-wrap` container property to the row on medium screens */\n  wrapMd?: Wrap;\n  /** Applies the `flex-wrap` container property to the row on large screens */\n  wrapLg?: Wrap;\n  /** Applies the `flex-wrap` container property to the row on extra-large screens */\n  wrapXl?: Wrap;\n}\n\nexport const ORIENTATION = ['top', 'bottom', 'start', 'end'] as const;\nexport type Orientation = (typeof ORIENTATION)[number];\n\nexport interface IPaneProviderProps {\n  /** Identifies the pane provider */\n  id?: string;\n  /** Provides the total width, in `px` units, of all panes in the layout */\n  totalPanesWidth: number;\n  /** Provides the total height, in `px` units, of all panes in the layout */\n  totalPanesHeight: number;\n  /** Defines default row values, in `fr` units, for an uncontrolled layout. The values are keyed by splitter. */\n  defaultRowValues?: Record<string, number>;\n  /** Defines default column values, in `fr` units, for an uncontrolled layout. The values are keyed by splitter. */\n  defaultColumnValues?: Record<string, number>;\n  /** Defines row values, in `fr` units, for a controlled layout. The values are keyed by splitter. */\n  rowValues?: Record<string, number>;\n  /** Defines column values, in `fr` units, for a controlled layout. The values are keyed by splitter. */\n  columnValues?: Record<string, number>;\n  /**\n   * Handles splitter position changes\n   *\n   * @param rowValues The updated row values\n   * @param columnValues The updated column values\n   */\n  onChange?: (rowValues: Record<string, number>, columnValues: Record<string, number>) => void;\n  /**\n   * Surfaces render props for applying splitter state to the supporting layout\n   *\n   * @param id Provides the `id` prop, if specified; otherwise, a generated ID.\n   * @param getColumnValue Gets column value by key\n   * @param getRowValue Gets row value by key\n   * @param getGridTemplateRows Gets grid template rows track\n   * @param getGridTemplateColumns Gets grid template columns track\n   */\n  children?: ({\n    id,\n    getColumnValue,\n    getRowValue,\n    getGridTemplateRows,\n    getGridTemplateColumns\n  }: {\n    id: string;\n    getColumnValue: (splitterKey: string, isPixels?: boolean) => number;\n    getRowValue: (splitterKey: string, isPixels?: boolean) => number;\n    getGridTemplateRows: (isPixels?: boolean) => string;\n    getGridTemplateColumns: (isPixels?: boolean) => string;\n  }) => ReactNode;\n}\n\nexport interface ISplitterProps extends HTMLAttributes<HTMLDivElement> {\n  /** Identifies the associated `PaneProvider`. Assumes the closest parent provider, by default. */\n  providerId?: string;\n  /** Specifies the splitter key */\n  layoutKey: string;\n  /** Sets a minimum, in `fr` units, for splitter position */\n  min: number;\n  /** Sets a maximum, in `fr` units, for splitter position */\n  max: number;\n  /** Determines splitter orientation within a pane */\n  orientation?: Orientation;\n  /** Determines if the splitter only toggles between `min` and `max` */\n  isFixed?: boolean;\n}\n\nexport interface ISplitterButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Adjusts the placement of the splitter button. Assumes start when vertical and center when horizontal, by default. */\n  placement?: (typeof PLACEMENT)[number];\n  /** Renders the provided label text inside a tooltip */\n  label: string;\n}\n",
+      "readme": "# @zendeskgarden/react-grid [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-grid)](https://www.npmjs.com/package/@zendeskgarden/react-grid)\n\nThis package includes components relating to layout grids in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Grid\n\nThe `Grid` component is inspired by the Bootstrap flexbox\n[grid](https://getbootstrap.com/docs/4.3/layout/grid/). With Garden, all of\nthe features are dynamic (based on props) – including the number of grid\ncolumns and gutter width. The result is an incredibly powerful grid system\nthat will be immediately familiar to users of Bootstrap.\n\n## Pane\n\nThe `Pane.Splitter` component enables resizable-layouts between one or\nmore panes. `PaneProvider` and `Pane`\ncoordinate multiple `Pane.Splitter` components in a\n[CSS Grid](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Grid_Layout) or\n[CSS Flex](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Flexible_Box_Layout)\nlayout. The `PaneProvider` and `Pane.Splitter` components receive `fr` units as\nvalues for building responsive resizable layouts by default.\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-grid\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Grid } from '@zendeskgarden/react-grid';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Grid>\n    <Grid.Row>\n      <Grid.Col md={4}>1 of 3</Grid.Col>\n      <Grid.Col md={4}>2 of 3</Grid.Col>\n      <Grid.Col md={4}>3 of 3</Grid.Col>\n    </Grid.Row>\n    <Grid.Row>\n      <Grid.Col md={6}>1 of 2</Grid.Col>\n      <Grid.Col md={6}>2 of 2</Grid.Col>\n    </Grid.Row>\n  </Grid>\n</ThemeProvider>;\n```\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { PaneProvider, Pane } from '@zendeskgarden/react-grid';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <PaneProvider\n    totalPanesHeight={1000}\n    totalPanesWidth={1000}\n    defaultColumnValues={{ 'col-1': 1, 'col-2': 1 }}\n    defaultRowValues={{ 'row-1': 1, 'row-2': 1 }}\n  >\n    {({ getGridTemplateColumns, getGridTemplateRows }) => (\n      <div\n        style={{\n          display: 'grid',\n          width: '1000px',\n          height: '1000px',\n          gridTemplateRows: getGridTemplateRows(),\n          gridTemplateColumns: getGridTemplateColumns()\n        }}\n      >\n        <Pane>\n          <Pane.Content>Pane 1</Pane.Content>\n          <Pane.Splitter layoutKey=\"col-1\" min={0} max={2} orientation=\"end\" />\n        </Pane>\n        <Pane>\n          <Pane.Content>Pane 2</Pane.Content>\n          <Pane.Splitter layoutKey=\"row-1\" min={0} max={2} orientation=\"bottom\">\n            <Pane.SplitterButton label=\"toggle row-1\" />\n          </Pane.Splitter>\n        </Pane>\n        <Pane>\n          <Pane.Content>Pane 3</Pane.Content>\n          <Pane.Splitter layoutKey=\"row-2\" min={0} max={2} orientation=\"top\">\n            <Pane.SplitterButton label=\"toggle row-2\" placement=\"end\" />\n          </Pane.Splitter>\n        </Pane>\n        <Pane>\n          <Pane.Content>Pane 4</Pane.Content>\n          <Pane.Splitter layoutKey=\"col-2\" min={0} max={2} orientation=\"start\" />\n        </Pane>\n      </div>\n    )}\n  </PaneProvider>\n</ThemeProvider>;\n```\n\n> the `Pane` component uses [`ResizeObserver`](https://developer.mozilla.org/en-US/docs/Web/API/Resize_Observer_API)\n> which is not available in node.js or other server side environments (if testing with Jest) - please\n> make sure to polyfill as needed. Since the ref used internally is not created when server side rendering,\n> the ResizeObserver API will not be invoked and should not pose an issue when doing so.\n",
+      "docs": "https://garden.zendesk.com/components/grid"
+    },
+    "loaders": {
+      "package": "loaders",
+      "npm": "@zendeskgarden/react-loaders",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Spinner, Dots, Progress, Skeleton. Use for loading/async states.",
+      "components": [
+        "Dots",
+        "Progress",
+        "Skeleton",
+        "Spinner",
+        "Inline"
+      ],
+      "typeExports": [
+        "IDotsProps",
+        "IInlineProps",
+        "IProgressProps",
+        "ISkeletonProps",
+        "ISpinnerProps"
+      ],
+      "interfaces": [
+        "Size",
+        "IDotsProps",
+        "IInlineProps",
+        "IProgressProps",
+        "ISkeletonProps",
+        "ISpinnerProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes, SVGAttributes } from 'react';\n\nexport const SIZE = ['small', 'medium', 'large'] as const;\n\nexport type Size = (typeof SIZE)[number];\n\nexport interface IDotsProps extends SVGAttributes<SVGSVGElement> {\n  /** Sets the height and width in pixels. Inherits the parent's font size by default. */\n  size?: string | number;\n  /**\n   * Sets the fill color. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e. `foreground.primary`)\n   * to render based on light/dark mode, or any hex value. Inherits the parent's\n   * `color` by default.\n   */\n  color?: string;\n  /** Sets the length of the animation cycle in milliseconds **/\n  duration?: number;\n  /** Delays displaying the loader to prevent a render flash during normal loading times **/\n  delayMS?: number;\n}\n\nexport interface IInlineProps extends SVGAttributes<SVGSVGElement> {\n  /** Sets the width in pixels and scales the loader proportionally */\n  size?: number;\n  /**\n   * Sets the fill color. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e. `foreground.primary`)\n   * to render based on light/dark mode, or any hex value. Inherits the parent's\n   * `color` by default.\n   */\n  color?: string;\n}\n\nexport interface IProgressProps extends HTMLAttributes<HTMLDivElement> {\n  /** Sets the progress as a value between 0 and 100 */\n  value?: number;\n  /**\n   * Sets the foreground bar's fill color. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e.\n   * `border.primaryEmphasis`) to render based on light/dark mode, or any hex\n   * value.  Defaults to the `border.successEmphasis`\n   * [theme](/components/theme-object#variables) value.\n   */\n  color?: string;\n  /** Adjusts the height */\n  size?: Size;\n}\n\nexport interface ISkeletonProps extends HTMLAttributes<HTMLDivElement> {\n  /** Sets the width as a percentage of the the parent element's width */\n  width?: string;\n  /** Sets the height as a percentage of parent element's height if the height is not already inherited by `line-height` */\n  height?: string;\n  /** Inverts the color for use on dark backgrounds */\n  isLight?: boolean;\n}\n\nexport interface ISpinnerProps extends SVGAttributes<SVGSVGElement> {\n  /**\n   * Sets the height and width in pixels. Inherits the parent's font size by default.\n   **/\n  size?: string;\n  /**\n   * Sets the length of the animation cycle in milliseconds\n   **/\n  duration?: number;\n  /**\n   * Sets the fill color. Accepts a [color\n   * variable](/components/theme-object#colors) key (i.e. `foreground.primary`)\n   * to render based on light/dark mode, or any hex value. Inherits the parent's\n   * `color` by default.\n   */\n  color?: string;\n  /**\n   * Delays displaying the loader to prevent a render flash during normal loading times\n   **/\n  delayMS?: number;\n}\n",
+      "readme": "# @zendeskgarden/react-loaders [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-loaders)](https://www.npmjs.com/package/@zendeskgarden/react-loaders)\n\nThis package includes components relating to loaders in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-loaders\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Dots\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Dots } from '@zendeskgarden/react-loaders';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Dots />;\n</ThemeProvider>;\n```\n\n### Inline\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Inline } from '@zendeskgarden/react-loaders';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Inline />\n</ThemeProvider>;\n```\n\n### Progress\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Progress } from '@zendeskgarden/react-loaders';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Progress value={40} />\n</ThemeProvider>;\n```\n\n### Skeleton\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Skeleton } from '@zendeskgarden/react-loaders';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Skeleton />;\n</ThemeProvider>;\n```\n\n### Spinner\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Spinner } from '@zendeskgarden/react-loaders';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Spinner />;\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/loaders"
+    },
+    "modals": {
+      "package": "modals",
+      "npm": "@zendeskgarden/react-modals",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Modal, Drawer, TooltipModal. Use for dialogs and overlays (ticket_editor modal apps).",
+      "components": [
+        "Modal",
+        "Body",
+        "Close",
+        "Footer",
+        "FooterItem",
+        "Header",
+        "TooltipDialog",
+        "Drawer",
+        "PLACEMENT",
+        "type IModalProps",
+        "type IDrawerProps",
+        "type ITooltipDialogProps"
+      ],
+      "typeExports": [],
+      "interfaces": [
+        "Placement",
+        "IModalProps",
+        "IHeaderProps",
+        "IDrawerProps",
+        "IDrawerHeaderProps",
+        "ITooltipDialogProps",
+        "ITooltipDialogTitleProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { PLACEMENT as PLACEMENT_BASE } from '@zendeskgarden/react-theming';\nimport { HTMLAttributes, KeyboardEvent, MouseEvent } from 'react';\n\nexport const PLACEMENT = ['auto', ...PLACEMENT_BASE] as const;\n\nexport type Placement = (typeof PLACEMENT)[number];\n\nexport interface IModalProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Passes HTML attributes to the backdrop element\n   */\n  backdropProps?: HTMLAttributes<HTMLDivElement>;\n  /**\n   * Handles close actions. Can be triggered from the backdrop and from the close icon.\n   *\n   * @param {Object} event The DOM event that triggered the close action\n   */\n  onClose?: (event: KeyboardEvent | MouseEvent) => void;\n  /**\n   * Centers the modal on the backdrop\n   */\n  isCentered?: boolean;\n  /**\n   * Animates the modal\n   */\n  isAnimated?: boolean;\n  /**\n   * Defines the DOM element that the modal will attatch to\n   */\n  appendToNode?: Element;\n  /**\n   * Applies large styling\n   */\n  isLarge?: boolean;\n  /**\n   * Directs keyboard focus to the modal on mount\n   */\n  focusOnMount?: boolean;\n  /**\n   * Returns keyboard focus to the element that triggered the modal\n   */\n  restoreFocus?: boolean;\n}\n\nexport interface IHeaderProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Applies danger styling\n   */\n  isDanger?: boolean;\n  /**\n   * Updates the element's HTML tag\n   */\n  tag?: any;\n}\n\nexport interface IDrawerProps extends Omit<IModalProps, 'isAnimated' | 'isCentered' | 'isLarge'> {\n  /**\n   * Opens the modal\n   */\n  isOpen?: boolean;\n}\n\nexport interface IDrawerHeaderProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Updates the element's HTML tag\n   */\n  tag?: any;\n}\n\nexport interface ITooltipDialogProps extends Omit<IModalProps, 'isCentered' | 'isLarge'> {\n  /**\n   * Provides a list of acceptable fallback placements\n   */\n  fallbackPlacements?: Exclude<Placement, 'auto'>[];\n  /**\n   * Adds an arrow to the tooltop\n   */\n  hasArrow?: boolean;\n  /**\n   * Keeps the tooltip content mounted in the DOM when closed, rather than unmounting it\n   */\n  keepMounted?: boolean;\n  /** @ignore Modifies the placement offset from the reference element (internal only) */\n  offset?: number;\n  /**\n   * Adjusts the placement of the tooltip\n   **/\n  placement?: Placement;\n  /**\n   * Positions the modal relative to the provided `HTMLElement`\n   */\n  referenceElement?: HTMLElement | null;\n  /**\n   * Sets the `z-index` of the tooltip\n   */\n  zIndex?: number;\n}\n\nexport interface ITooltipDialogTitleProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Updates the element's HTML tag\n   */\n  tag?: any;\n}\n",
+      "readme": "# @zendeskgarden/react-modals [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-modals)](https://www.npmjs.com/package/@zendeskgarden/react-modals)\n\nThis package includes components relating to modals in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-modals\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Modal\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Modal } from '@zendeskgarden/react-modals';\nimport { Button } from '@zendeskgarden/react-buttons';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Modal onClose={() => alert('modal closing')}>\n    <Modal.Header>Example Header</Modal.Header>\n    <Modal.Body>Some content</Modal.Body>\n    <Modal.Footer>\n      <Modal.FooterItem>\n        <Button isBasic>Cancel</Button>\n      </Modal.FooterItem>\n      <Modal.FooterItem>\n        <Button isPrimary>Confirm</Button>\n      </Modal.FooterItem>\n    </Modal.Footer>\n    <Modal.Close aria-label=\"Close modal\" />\n  </Modal>\n</ThemeProvider>;\n```\n\n### Drawer\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Drawer } from '@zendeskgarden/react-modals';\nimport { Button } from '@zendeskgarden/react-buttons';\n\nconst [isOpen, setIsOpen] = useState(false)\n\n<ThemeProvider>\n  <Button onClick={() => setIsOpen(true)}>\n    Open\n  </Button>\n  <Drawer isOpen={state.isOpen} onClose={() => setIsOpen(false)}>\n    <Drawer.Header>Example Title</Drawer.Header>\n    <Drawer.Body>Some content</Drawer.Body>\n    <Drawer.Footer>\n      <Drawer.FooterItem>\n        <Button>Click</Button>\n      </Drawer.FooterItem>\n    </Drawer.Footer>\n    <Drawer.Close aria-Label=\"Close\" />\n  </Drawer>\n</ThemeProvider>\n```\n\n### TooltipDialog\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { TooltipDialog } from '@zendeskgarden/react-modals';\nimport { Button } from '@zendeskgarden/react-buttons';\n\nconst [isOpen, setIsOpen] = useState(false);\nconst buttonRef = useRef(null);\n\n<ThemeProvider>\n  <Button ref={buttonRef} onClick={() => setIsOpen(!isOpen)}>\n    Open\n  </Button>\n  <TooltipDialog\n    onClose={() => setIsOpen(false)}\n    referenceElement={isOpen && buttonRef.current ? buttonRef.current : undefined}\n  >\n    <TooltipDialog.Title>Example Title</TooltipDialog.Title>\n    <TooltipDialog.Body>Some content</TooltipDialog.Body>\n    <TooltipDialog.Footer>\n      <TooltipDialog.FooterItem>\n        <Button>Click</Button>\n      </TooltipDialog.FooterItem>\n    </TooltipDialog.Footer>\n    <TooltipDialog.Close aria-label=\"Close\" />\n  </TooltipDialog>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/modals"
+    },
+    "notifications": {
+      "package": "notifications",
+      "npm": "@zendeskgarden/react-notifications",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Alert, Notification, Toast, Well, GlobalAlert + useToast. Use for status/feedback messaging.",
+      "components": [
+        "Alert",
+        "Notification",
+        "Well",
+        "Close",
+        "Paragraph",
+        "Title",
+        "ToastProvider",
+        "useToast",
+        "type IToastOptions",
+        "type IToast",
+        "GlobalAlert"
+      ],
+      "typeExports": [
+        "IAlertProps",
+        "INotificationProps",
+        "IWellProps",
+        "ITitleProps",
+        "IToastProviderProps",
+        "IGlobalAlertProps",
+        "IGlobalAlertButtonProps",
+        "IGlobalAlertTitleProps"
+      ],
+      "interfaces": [
+        "Placement",
+        "Type",
+        "IAlertProps",
+        "INotificationProps",
+        "IWellProps",
+        "ITitleProps",
+        "IToastProviderProps",
+        "IGlobalAlertProps",
+        "IGlobalAlertButtonProps",
+        "IGlobalAlertTitleProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { IButtonProps } from '@zendeskgarden/react-buttons';\nimport { HTMLAttributes, ButtonHTMLAttributes } from 'react';\n\nexport const PLACEMENT = [\n  'top-start',\n  'top',\n  'top-end',\n  'bottom-start',\n  'bottom',\n  'bottom-end'\n] as const;\n\nexport const TYPE = ['success', 'warning', 'error', 'info'] as const;\n\nexport type Placement = (typeof PLACEMENT)[number];\n\nexport type Type = (typeof TYPE)[number];\n\nexport interface IAlertProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies alert type styles */\n  type: Type;\n}\n\nexport interface INotificationProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies notification type styles */\n  type?: Type;\n}\n\nexport interface IWellProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies a background color */\n  isRecessed?: boolean;\n  /** Applies a drop shadow */\n  isFloating?: boolean;\n}\n\nexport interface ITitleProps extends HTMLAttributes<HTMLDivElement> {\n  /** Applies regular (non-bold) font weight */\n  isRegular?: boolean;\n}\n\nexport interface IToastProviderProps {\n  /**\n   * Limits the number of visible toasts\n   */\n  limit?: number;\n  /**\n   * Passes placement-based customization props to the toast's parent element\n   */\n  placementProps?: Partial<Record<Placement, HTMLAttributes<HTMLDivElement>>>;\n  /**\n   * Sets the `z-index` of the toast\n   */\n  zIndex?: number;\n}\n\nexport interface IGlobalAlertProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Applies global alert type styles\n   */\n  type: Type;\n}\n\nexport interface IGlobalAlertButtonProps\n  extends ButtonHTMLAttributes<HTMLButtonElement>, Pick<IButtonProps, 'isBasic'> {}\n\nexport interface IGlobalAlertTitleProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Applies regular (non-bold) font weight\n   */\n  isRegular?: boolean;\n}\n",
+      "readme": "# @zendeskgarden/react-notifications [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-notifications)](https://www.npmjs.com/package/@zendeskgarden/react-notifications)\n\nThis package includes several varieties of notifications and wells within\nthe [Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-notifications\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n## Notifications\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Notification } from '@zendeskgarden/react-notifications';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Notification>\n    <Notification.Title>Example Title</Notification.Title>\n    Lorem ipsum dolor sit amet, consectetur adipiscing elit...\n  </Notification>\n</ThemeProvider>;\n```\n\n## Toasts\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Button } from '@zendeskgarden/react-buttons';\nimport { Notification, ToastProvider, useToast } from '@zendeskgarden/react-notifications';\n\nconst ToastExample = () => {\n  const { addToast } = useToast();\n\n  return (\n    <Button\n      onClick={() =>\n        addToast(({ close }) => (\n          <Notification>\n            Example notification\n            <Notification.Close onClick={close} aria-label=\"Close\" />\n          </Notification>\n        ))\n      }\n    >\n      Add toast\n    </Button>\n  );\n};\n\n<ThemeProvider>\n  <ToastProvider>\n    <ToastExample />\n  </ToastProvider>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/notifications"
+    },
+    "pagination": {
+      "package": "pagination",
+      "npm": "@zendeskgarden/react-pagination",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Pagination and OffsetPagination + Cursor pagination. Use to page long lists.",
+      "components": [
+        "OffsetPagination",
+        "CursorPagination"
+      ],
+      "typeExports": [
+        "IPaginationProps",
+        "PageType"
+      ],
+      "interfaces": [
+        "PageType",
+        "IPaginationProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes } from 'react';\n\nexport const PAGE_TYPE = ['next', 'page', 'gap', 'previous'] as const;\n\nexport type PageType = (typeof PAGE_TYPE)[number];\n\nexport interface IPaginationProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {\n  /**\n   * Sets the current page. Pages start at 1\n   */\n  currentPage: number;\n  /**\n   * Defines the total number of pages\n   */\n  totalPages: number;\n  /**\n   * Sets the number of pages that appear between the current page and a gap indicator\n   */\n  pagePadding?: number;\n  /**\n   * Positions the leading and trailing gap indicator, based on\n   * the current and total pages\n   */\n  pageGap?: number;\n  /**\n   * Handles page change events\n   *\n   * @param {number} currentPage The current page\n   */\n  onChange?: (currentPage: number) => void;\n  /**\n   * Provides localized labels to pagination elements\n   */\n  labels?: Record<Exclude<PageType, 'page'>, string> & { renderPage: (p: number) => string };\n}\n",
+      "readme": "# @zendeskgarden/react-pagination [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-pagination)](https://www.npmjs.com/package/@zendeskgarden/react-pagination)\n\nThis package includes components relating to pagination in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-pagination\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### Offset Pagination\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { OffsetPagination } from '@zendeskgarden/react-pagination';\n\ninitialState = {\n  currentPage: 1\n};\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <OffsetPagination\n    totalPages={11}\n    currentPage={state.currentPage}\n    onChange={currentPage => setState({ currentPage })}\n  />\n</ThemeProvider>;\n```\n\n### Cursor Pagination\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { CursorPagination } from '@zendeskgarden/react-pagination';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <CursorPagination aria-label=\"Cursor pagination\">\n    <CursorPagination.First>First</CursorPagination.First>\n    <CursorPagination.Previous>Previous</CursorPagination.Previous>\n    <CursorPagination.Next>Next</CursorPagination.Next>\n    <CursorPagination.Last>Last</CursorPagination.Last>\n  </CursorPagination>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/pagination"
+    },
+    "tables": {
+      "package": "tables",
+      "npm": "@zendeskgarden/react-tables",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Table, Head, HeaderRow, HeaderCell, Body, Row, Cell, GroupRow, Caption. Use for tabular data.",
+      "components": [
+        "Body",
+        "Caption",
+        "Cell",
+        "GroupRow",
+        "Head",
+        "HeaderCell",
+        "HeaderRow",
+        "OverflowButton",
+        "Row",
+        "SortableCell",
+        "Table"
+      ],
+      "typeExports": [
+        "ITableProps",
+        "IRowProps",
+        "ICellProps",
+        "IHeadProps",
+        "IHeaderCellProps",
+        "ISortableCellProps"
+      ],
+      "interfaces": [
+        "ITableProps",
+        "IHeadProps",
+        "IRowProps",
+        "ICellProps",
+        "IHeaderCellProps",
+        "ISortableCellProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport {\n  ButtonHTMLAttributes,\n  HTMLAttributes,\n  TableHTMLAttributes,\n  TdHTMLAttributes,\n  ThHTMLAttributes\n} from 'react';\n\nexport const SIZE = ['small', 'medium', 'large'] as const;\n\nexport const SORT = ['asc', 'desc'];\n\nexport interface ITableProps extends TableHTMLAttributes<HTMLTableElement> {\n  /** Sets the table size */\n  size?: (typeof SIZE)[number];\n  /** Removes interactive styling from table rows */\n  isReadOnly?: boolean;\n}\n\nexport interface IHeadProps extends HTMLAttributes<HTMLTableSectionElement> {\n  /** Applies sticky header styling */\n  isSticky?: boolean;\n}\n\nexport interface IRowProps extends HTMLAttributes<HTMLTableRowElement> {\n  /** Applies striped styling */\n  isStriped?: boolean;\n  /** Applies selected styling */\n  isSelected?: boolean;\n  /** @ignore Applies focus styling */\n  isFocused?: boolean;\n  /** @ignore Applies hover styling */\n  isHovered?: boolean;\n}\n\nexport interface ICellProps extends TdHTMLAttributes<HTMLTableCellElement> {\n  /**\n   * Applies minimum fixed width styling (e.g. for cells that contain\n   * checkboxes or icons)\n   */\n  isMinimum?: boolean;\n  /** Truncates long text with an ellipsis */\n  isTruncated?: boolean;\n  /** Applies styling for a cell that contains an overflow menu */\n  hasOverflow?: boolean;\n  /** Adjusts the [width](https://developer.mozilla.org/en-US/docs/Web/CSS/width) of the cell */\n  width?: TdHTMLAttributes<HTMLTableCellElement>['width'];\n}\n\nexport interface IHeaderCellProps\n  extends\n    Pick<ICellProps, 'isMinimum' | 'isTruncated' | 'hasOverflow' | 'width'>,\n    ThHTMLAttributes<HTMLTableCellElement> {}\n\nexport interface ISortableCellProps extends ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Sets the sort order */\n  sort?: (typeof SORT)[number];\n  /** Sets the width of the cell */\n  width?: ICellProps['width'];\n  /** Passes props to the cell */\n  cellProps?: any;\n}\n",
+      "readme": "# @zendeskgarden/react-tables [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-tables)](https://www.npmjs.com/package/@zendeskgarden/react-tables)\n\nThis package includes components relating to tables in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-tables\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Table } from '@zendeskgarden/react-tables';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Table>\n    <Table.Caption>Your Unsolved Tickets</Table.Caption>\n    <Table.Head>\n      <Table.HeaderRow>\n        <Table.HeaderCell>Subject</Table.HeaderCell>\n        <Table.HeaderCell>Requester</Table.HeaderCell>\n        <Table.HeaderCell>Requested</Table.HeaderCell>\n        <Table.HeaderCell>Type</Table.HeaderCell>\n      </Table.HeaderRow>\n    </Table.Head>\n    <Table.Body>\n      <Table.Row>\n        <Table.Cell>Where are my shoes?</Table.Cell>\n        <Table.Cell>John Smith</Table.Cell>\n        <Table.Cell>15 minutes ago</Table.Cell>\n        <Table.Cell>Ticket</Table.Cell>\n      </Table.Row>\n      <Table.Row>\n        <Table.Cell>I was charged twice!</Table.Cell>\n        <Table.Cell>Jane Doe</Table.Cell>\n        <Table.Cell>25 minutes ago</Table.Cell>\n        <Table.Cell>Call</Table.Cell>\n      </Table.Row>\n    </Table.Body>\n  </Table>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/tables"
+    },
+    "tabs": {
+      "package": "tabs",
+      "npm": "@zendeskgarden/react-tabs",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Tabs, TabList, Tab, TabPanel. Use to switch between sibling views.",
+      "components": [
+        "Tab",
+        "TabList",
+        "TabPanel",
+        "Tabs"
+      ],
+      "typeExports": [
+        "ITabProps",
+        "ITabPanelProps",
+        "ITabsProps"
+      ],
+      "interfaces": [
+        "ITabProps",
+        "ITabPanelProps",
+        "ITabsProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes } from 'react';\n\nexport interface ITabProps extends HTMLAttributes<HTMLDivElement> {\n  /** Indicates that the element is not interactive */\n  disabled?: boolean;\n  /** Defines a unique value to identify the tab. Provided to the `onChange` event in the [Tabs](#tabs) component. */\n  item?: any;\n}\n\nexport interface ITabPanelProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Defines a value used to match a tab panel with its associated tab\n   */\n  item?: any;\n}\n\nexport interface ITabsProps extends HTMLAttributes<HTMLDivElement> {\n  /**\n   * Arranges the tabs vertically\n   */\n  isVertical?: boolean;\n  /**\n   * Specifies the currently selected tab\n   */\n  selectedItem?: any;\n  /**\n   * Handles tab selection\n   *\n   * @param {String} selectedItem The selected tab's `item` value\n   */\n  onChange?: (selectedItem: any) => void;\n}\n",
+      "readme": "# @zendeskgarden/react-tabs [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-tabs)](https://www.npmjs.com/package/@zendeskgarden/react-tabs)\n\nThis package includes several varieties of Tabs relating to\nthe [Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-tabs\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport React, { useState } from 'react';\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Tabs } from '@zendeskgarden/react-tabs';\n\nconst Example = () => {\n  const [selectedTab, setSelectedTab] = useState('tab-1');\n\n  /**\n   * Place a `ThemeProvider` at the root of your React application\n   */\n  return (\n    <ThemeProvider>\n      <Tabs selectedItem={selectedTab} onChange={setSelectedTab}>\n        <Tabs.TabList>\n          <Tabs.Tab item=\"tab-1\">Tab 1</Tabs.Tab>\n          <Tabs.Tab item=\"tab-2\">Tab 2</Tabs.Tab>\n          <Tabs.Tab disabled>Disabled Tab</Tabs.Tab>\n          <Tabs.Tab item=\"tab-3\">Tab 3</Tabs.Tab>\n        </Tabs.TabList>\n        <Tabs.TabPanel item=\"tab-1\">Tab 1 content</Tabs.TabPanel>\n        <Tabs.TabPanel item=\"tab-2\">Tab 2 content</Tabs.TabPanel>\n        <Tabs.TabPanel item=\"tab-3\">Tab 3 content</Tabs.TabPanel>\n      </Tabs>\n    </ThemeProvider>\n  );\n};\n```\n",
+      "docs": "https://garden.zendesk.com/components/tabs"
+    },
+    "tags": {
+      "package": "tags",
+      "npm": "@zendeskgarden/react-tags",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Tag with close/avatar. Use for labels, keywords, filter chips.",
+      "components": [
+        "Tag"
+      ],
+      "typeExports": [
+        "ITagProps"
+      ],
+      "interfaces": [
+        "ITagProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { HTMLAttributes } from 'react';\n\nexport const SIZE = ['small', 'medium', 'large'] as const;\n\nexport interface ITagProps extends HTMLAttributes<HTMLDivElement> {\n  /** Adjusts font size and padding */\n  size?: (typeof SIZE)[number];\n  /**\n   * Sets the color of the tag. Refer to theming\n   * [colors](/components/theme-object#colors) or\n   * [PALETTE](/components/palette#palette) for available colors. Use [primary\n   * hues](/design/color#primary-colors) – `blue`, `green`, `grey`, `kale`,\n   * `red`, `yellow` or `primaryHue`, `successHue`, `neutralHue`, `chromeHue`,\n   * `dangerHue`, `warningHue`  – to apply color based on light/dark mode.\n   * Accepts any hex value.\n   */\n  hue?: string;\n  /** Applies pill styling */\n  isPill?: boolean;\n  /** Applies styles to round the tag */\n  isRound?: boolean;\n  /** Applies regular (non-bold) font weight */\n  isRegular?: boolean;\n}\n",
+      "readme": "# @zendeskgarden/react-tags [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-tags)](https://www.npmjs.com/package/@zendeskgarden/react-tags)\n\nThis package includes components relating to tags in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-tags\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { Tag } from '@zendeskgarden/react-tags';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Tag pill>\n    <Tag.Avatar>\n      <img alt=\"\" src=\"images/user.png\" />\n    </Tag.Avatar>\n    Example User\n    <Tag.Close\n      aria-label=\"press delete to remove Example User tag\"\n      onClick={() => alert('remove tag')}\n    />\n  </Tag>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/tags"
+    },
+    "theming": {
+      "package": "theming",
+      "npm": "@zendeskgarden/react-theming",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^4.2.0 || ^5.3.1 || ^6.0.0"
+      },
+      "summary": "ThemeProvider, DEFAULT_THEME, getColor, PALETTE, useDocument, focus-visible + RTL. REQUIRED root wrapper for every Garden app.",
+      "components": [
+        "ColorSchemeProvider",
+        "ThemeProvider",
+        "DEFAULT_THEME",
+        "PALETTE",
+        "retrieveComponentStyles",
+        "componentStyles",
+        "getArrowPosition",
+        "getCheckeredBackground",
+        "getColor",
+        "getColorV8",
+        "getFloatingPlacements",
+        "getFocusBoxShadow",
+        "getHueColor",
+        "getLineHeight",
+        "getMenuPosition",
+        "mediaQuery",
+        "arrowStyles",
+        "useColorScheme",
+        "useDocument",
+        "useWindow",
+        "useText",
+        "menuStyles",
+        "focusStyles",
+        "SELECTOR_FOCUS_VISIBLE",
+        "StyledBaseIcon",
+        "ARROW_POSITION",
+        "MENU_POSITION",
+        "PLACEMENT",
+        "type IColorSchemeContext",
+        "type IColorSchemeProviderProps",
+        "type IGardenTheme",
+        "type IStyledBaseIconProps",
+        "type IThemeProviderProps",
+        "type ArrowPosition",
+        "type CheckeredBackgroundParameters",
+        "type ColorParameters",
+        "type ColorScheme",
+        "type FocusBoxShadowParameters",
+        "type FocusStylesParameters",
+        "type HueColorParameters",
+        "type MenuPosition",
+        "type Placement"
+      ],
+      "typeExports": [],
+      "interfaces": [
+        "ArrowPosition",
+        "MenuPosition",
+        "Placement",
+        "CheckeredBackgroundParameters",
+        "ColorParameters",
+        "FocusStylesParameters",
+        "FocusBoxShadowParameters",
+        "Hue",
+        "HueColorParameters",
+        "IGardenTheme",
+        "ColorScheme",
+        "IColorSchemeContext",
+        "IColorSchemeProviderProps",
+        "IThemeProviderProps",
+        "IStyledBaseIconProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { PropsWithChildren, SVGAttributes } from 'react';\nimport { CSSObject, DefaultTheme, ThemeProviderProps } from 'styled-components';\n\nexport const ARROW_POSITION = [\n  'top',\n  'top-left',\n  'top-right',\n  'right',\n  'right-top',\n  'right-bottom',\n  'bottom',\n  'bottom-left',\n  'bottom-right',\n  'left',\n  'left-top',\n  'left-bottom'\n] as const;\n\nexport type ArrowPosition = (typeof ARROW_POSITION)[number];\n\nexport const MENU_POSITION = ['top', 'right', 'bottom', 'left'] as const;\n\nexport type MenuPosition = (typeof MENU_POSITION)[number];\n\nexport const PLACEMENT = [\n  'top',\n  'top-start',\n  'top-end',\n  'bottom',\n  'bottom-start',\n  'bottom-end',\n  'end',\n  'end-top',\n  'end-bottom',\n  'start',\n  'start-top',\n  'start-bottom'\n] as const;\n\nexport type Placement = (typeof PLACEMENT)[number];\n\nexport type CheckeredBackgroundParameters = {\n  overlay?: string;\n  positionY?: number;\n  repeat?: 'repeat' | 'repeat-x';\n  size: number;\n  theme: IGardenTheme;\n};\n\nexport type ColorParameters = {\n  dark?: {\n    hue?: string;\n    offset?: number;\n    shade?: number;\n    transparency?: number;\n  };\n  hue?: string;\n  light?: {\n    hue?: string;\n    offset?: number;\n    shade?: number;\n    transparency?: number;\n  };\n  offset?: number;\n  shade?: number;\n  theme: IGardenTheme;\n  transparency?: number;\n  variable?: string;\n};\n\nexport type FocusStylesParameters = FocusBoxShadowParameters & {\n  condition?: boolean;\n  selector?: string;\n  styles?: CSSObject;\n};\n\nexport type FocusBoxShadowParameters = {\n  boxShadow?: string;\n  inset?: boolean;\n  color?: Omit<ColorParameters, 'theme'>;\n  shadowWidth?: 'sm' | 'md';\n  spacerColor?: Omit<ColorParameters, 'theme'>;\n  spacerWidth?: null | 'xs' | 'sm';\n  theme: IGardenTheme;\n};\n\nexport type Hue = Record<number | string, string> | string;\n\nexport type HueColorParameters = {\n  theme: IGardenTheme;\n  value: string;\n};\n\nexport interface IGardenTheme {\n  rtl: boolean;\n  document?: any;\n  window?: any;\n  borders: {\n    sm: string;\n    md: string;\n  };\n  borderRadii: {\n    sm: string;\n    md: string;\n    lg: string;\n  };\n  borderStyles: {\n    solid: string;\n  };\n  borderWidths: {\n    sm: string;\n    md: string;\n  };\n  breakpoints: {\n    xs: string;\n    sm: string;\n    md: string;\n    lg: string;\n    xl: string;\n  };\n  colors: {\n    base: 'light' | 'dark';\n    primaryHue: string;\n    dangerHue: string;\n    warningHue: string;\n    successHue: string;\n    neutralHue: string;\n    chromeHue: string;\n    variables: {\n      dark: {\n        background: Record<string, string>;\n        border: Record<string, string>;\n        foreground: Record<string, string>;\n        shadow: Record<string, string>;\n      };\n      light: {\n        background: Record<string, string>;\n        border: Record<string, string>;\n        foreground: Record<string, string>;\n        shadow: Record<string, string>;\n      };\n    };\n  };\n  components: Record<string, any>;\n  fonts: {\n    mono: string;\n    system: string;\n  };\n  fontSizes: {\n    xs: string;\n    sm: string;\n    md: string;\n    lg: string;\n    xl: string;\n    xxl: string;\n    xxxl: string;\n  };\n  fontWeights: {\n    thin: number;\n    extralight: number;\n    light: number;\n    regular: number;\n    medium: number;\n    semibold: number;\n    bold: number;\n    extrabold: number;\n    black: number;\n  };\n  iconSizes: {\n    sm: string;\n    md: string;\n    lg: string;\n  };\n  lineHeights: {\n    sm: string;\n    md: string;\n    lg: string;\n    xl: string;\n    xxl: string;\n    xxxl: string;\n  };\n  opacity: Record<number, number>;\n  palette: Record<string, Hue>;\n  shadowWidths: {\n    xs: string;\n    sm: string;\n    md: string;\n  };\n  shadows: {\n    xs: (color: string) => string;\n    sm: (color: string) => string;\n    md: (color: string) => string;\n    lg: (offsetY: string, blurRadius: string, color: string) => string;\n  };\n  space: {\n    base: number;\n    xxs: string;\n    xs: string;\n    sm: string;\n    md: string;\n    lg: string;\n    xl: string;\n    xxl: string;\n  };\n}\n\nexport type ColorScheme = IGardenTheme['colors']['base'] | 'system';\n\nexport interface IColorSchemeContext {\n  /** Returns the current color scheme */\n  colorScheme: IGardenTheme['colors']['base'];\n  /** Indicates whether the `colorScheme` is determined by the system */\n  isSystem: boolean;\n  /** Provides the mechanism for updating the current color scheme */\n  setColorScheme: (colorScheme: ColorScheme) => void;\n}\n\nexport interface IColorSchemeProviderProps {\n  /**\n   * Sets the initial color scheme and provides `localStorage` persistence (see\n   * the `useColorScheme` hook). A user's stored preference overrides this\n   * value.\n   */\n  initialColorScheme?: ColorScheme;\n  /**\n   * Specifies the key used to store the user's preferred color scheme in\n   * `localStorage` or `null` to bypass local storage persistence\n   */\n  colorSchemeKey?: string | null;\n}\n\nexport interface IThemeProviderProps extends Partial<ThemeProviderProps<IGardenTheme>> {\n  /**\n   * Provides values for component styling. See styled-components\n   * [`ThemeProvider`](https://styled-components.com/docs/api#themeprovider)\n   * for details.\n   */\n  theme?: IGardenTheme | ((theme: IGardenTheme) => IGardenTheme);\n}\n\nexport interface IStyledBaseIconProps extends PropsWithChildren<SVGAttributes<SVGElement>> {\n  theme?: DefaultTheme;\n}\n",
+      "readme": "# @zendeskgarden/react-theming [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-theming)](https://www.npmjs.com/package/@zendeskgarden/react-theming)\n\nThe Theming package includes several utility components relating to theming\nand RTL capabilities in the [Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-theming\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components\n```\n\n## Usage\n\nThe `ThemeProvider` component can be used to apply granular theming to Garden\n(and custom) components. It is intended to be used at the root of an\napplication to provide a global context for RTL. `ThemeProvider` components\ncan be nested for areas that require additional, custom theming.\n\n### Theming\n\nGarden provides several levels of customization, listed here from simple to\ncomplex, depending on your needs:\n\n- Via the `theme` prop passed to `ThemeProvider`. Garden gives you access to\n  many of the font, pixel, and color values used to style individual\n  components. By modifying the `theme` you have the ability to customize whole\n  aspects of the design system with minimal effort. Example: use `theme` to\n  customize component primary accents with your brand color.\n- Via the `theme.components` object within the `theme` prop. Using\n  `COMPONENT_ID` keys, you can target precise CSS properties for\n  customization. Example: use `theme.components` to override the 20px\n  bottom margin of `tabs.tablist`.\n- Via Garden's\n  [`react-containers`](https://github.com/zendeskgarden/react-containers)\n  (outside the scope of this component). At some point, the flexibility\n  provided by `theme` and `theme.components` has diminishing returns. If you\n  find yourself fully re-skinning a component, then you should check out\n  Garden's container abstractions. Example: retain the accessible keyboard\n  behavior and RTL layout of Garden's tabs component with an alternate visual\n  design (i.e. closer to the look of browser tabs).\n\n#### Color scheme\n\nThe `ColorSchemeProvider` and `useColorScheme` hook add the capability for a\nuser to persist a preferred system color scheme (`'light'`, `'dark'`, or\n`'system'`). See\n[Storybook](https://zendeskgarden.github.io/react-components/?path=/docs/packages-theming-colorschemeprovider--color-scheme-provider)\nfor more details.\n\n```jsx\nimport {\n  useColorScheme,\n  ColorSchemeProvider,\n  ThemeProvider,\n  DEFAULT_THEME\n} from '@zendeskgarden/react-theming';\n\nconst ThemedApp = ({ children }) => {\n  const { colorScheme } = useColorScheme();\n  const theme = { ...DEFAULT_THEME, colors: { ...DEFAULT_THEME.colors, base: colorScheme } };\n\n  return <ThemeProvider theme={theme}>{children}</ThemeProvider>;\n};\n\nconst App = ({ children }) => (\n  <ColorSchemeProvider>\n    <ThemedApp>{children}</ThemedApp>\n  </ColorSchemeProvider>\n);\n```\n\n#### RTL\n\n```jsx\nimport { ThemeProvider, DEFAULT_THEME } from '@zendeskgarden/react-theming';\nimport { Notification } from '@zendeskgarden/react-notifications';\n\n<ThemeProvider theme={{ ...DEFAULT_THEME, rtl: true }}>\n  <Notification>This notification content will render with RTL layout.</Notification>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/theming"
+    },
+    "tooltips": {
+      "package": "tooltips",
+      "npm": "@zendeskgarden/react-tooltips",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Tooltip and Paragraph tooltip. Use for supplemental hover/focus hints.",
+      "components": [
+        "Paragraph",
+        "Title",
+        "Tooltip"
+      ],
+      "typeExports": [
+        "ITooltipProps"
+      ],
+      "interfaces": [
+        "GardenPlacement",
+        "ITooltipProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { PLACEMENT as PLACEMENT_BASE } from '@zendeskgarden/react-theming';\nimport { HTMLAttributes, ReactElement, ReactNode } from 'react';\n\nexport const PLACEMENT = ['auto', ...PLACEMENT_BASE] as const;\n\nexport const SIZE = ['small', 'medium', 'large', 'extra-large'] as const;\n\nexport const TYPE = ['light', 'dark'] as const;\n\nexport type GardenPlacement = (typeof PLACEMENT)[number];\n\nexport interface ITooltipProps extends Omit<HTMLAttributes<HTMLDivElement>, 'content'> {\n  /** Appends the tooltip to the element provided */\n  appendToNode?: Element;\n  /** Adds an arrow to the tooltip */\n  hasArrow?: boolean;\n  /** Adds milliseconds of delay to the opening and closing of the tooltip */\n  delayMS?: number;\n  /** Defines the content of the tooltip */\n  content: ReactNode;\n  /** Provides a list of acceptable fallback placements */\n  fallbackPlacements?: Exclude<GardenPlacement, 'auto'>[];\n  /** Adjusts the placement of the tooltip */\n  placement?: GardenPlacement;\n  /** Adjusts the padding and font size */\n  size?: (typeof SIZE)[number];\n  /** Specifies the tooltip type */\n  type?: (typeof TYPE)[number];\n  /** Sets the `z-index` of the tooltip */\n  zIndex?: number | string;\n  /**\n   * Indicates that the tooltip is used as the trigger's primary label rather\n   * than as a supplemental description\n   */\n  isLabel?: boolean;\n  /** Displays the tooltip on initial render */\n  isInitialVisible?: boolean;\n  /** Displays the tooltip */\n  isVisible?: boolean;\n  /** @ignore ReactNode override */\n  children: ReactElement;\n  /** Defines the ref key used to position the tooltip */\n  refKey?: string;\n}\n",
+      "readme": "# @zendeskgarden/react-tooltips [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-tooltips)](https://www.npmjs.com/package/@zendeskgarden/react-tooltips)\n\nThis package includes presentation components and render prop containers relating to Tooltips\nin the Garden Design System.\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-tooltips\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n### TooltipElement\n\nStandard tooltip usages.\n\n```jsx\nimport { ThemingProvider } from '@zendeskgarden/react-theming';\nimport { Tooltip } from '@zendeskgarden/react-tooltips';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <Tooltip content=\"This is a small tooltip\">\n    <button>Trigger top placement</button>\n  </Tooltip>\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/tooltips"
+    },
+    "typography": {
+      "package": "typography",
+      "npm": "@zendeskgarden/react-typography",
+      "version": "9.15.0",
+      "peerDependencies": {
+        "@zendeskgarden/react-theming": ">=9.14.0",
+        "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "react-dom": "^16.8.0 || ^17.0.0 || ^18.0.0",
+        "styled-components": "^5.3.1 || ^6.0.0"
+      },
+      "summary": "Span, Paragraph, Code, Ellipsis, MediaFigure, OrderedList, UnorderedList, XL/LG/MD/SM/Text. Use for text and lists.",
+      "components": [
+        "SM",
+        "MD",
+        "LG",
+        "XL",
+        "XXL",
+        "XXXL",
+        "Blockquote",
+        "Code",
+        "CodeBlock",
+        "Ellipsis",
+        "Kbd",
+        "Paragraph",
+        "OrderedList",
+        "UnorderedList",
+        "Span"
+      ],
+      "typeExports": [
+        "ISMProps",
+        "IMDProps",
+        "ILGProps",
+        "IXLProps",
+        "IXXLProps",
+        "IXXXLProps",
+        "IBlockquoteProps",
+        "ICodeProps",
+        "ICodeBlockProps",
+        "IEllipsisProps",
+        "IKbdProps",
+        "IParagraphProps",
+        "IOrderedListProps",
+        "IUnorderedListProps",
+        "ISpanProps"
+      ],
+      "interfaces": [
+        "Diff",
+        "Size",
+        "ITypescaleProps",
+        "ITypescaleMonospaceProps",
+        "IBlockquoteProps",
+        "ICodeProps",
+        "ICodeBlockProps",
+        "IEllipsisProps",
+        "IKbdProps",
+        "IParagraphProps",
+        "IOrderedListProps",
+        "IUnorderedListProps",
+        "ISpanProps"
+      ],
+      "props": "/**\n * Copyright Zendesk, Inc.\n *\n * Use of this source code is governed under the Apache License, Version 2.0\n * found at http://www.apache.org/licenses/LICENSE-2.0.\n */\n\nimport { BlockquoteHTMLAttributes, HTMLAttributes, OlHTMLAttributes } from 'react';\n\nexport const HUE = ['grey', 'red', 'green', 'yellow'] as const;\n\nexport const SIZE = ['small', 'medium', 'large'] as const;\n\nexport const INHERIT_SIZE = ['inherit', ...SIZE] as const;\n\nexport const TYPE_ORDERED_LIST = [\n  'decimal',\n  'decimal-leading-zero',\n  'lower-alpha',\n  'lower-roman',\n  'upper-alpha',\n  'upper-roman'\n] as const;\n\nexport const TYPE_UNORDERED_LIST = ['circle', 'disc', 'square'] as const;\n\n/* until https://github.com/FormidableLabs/prism-react-renderer/pull/127 is available */\nexport const LANGUAGES = [\n  'bash',\n  'css',\n  'diff',\n  'graphql',\n  'javascript',\n  'json',\n  'jsx',\n  'markdown',\n  'markup',\n  'python',\n  'typescript',\n  'tsx',\n  'yaml'\n] as const;\n\nexport type Diff = 'hunk' | 'add' | 'delete' | 'change';\n\nexport type Size = (typeof SIZE)[number];\n\nexport interface ITypescaleProps extends HTMLAttributes<HTMLDivElement> {\n  /** Updates the element's HTML tag */\n  tag?: any;\n  /** Applies bold font style */\n  isBold?: boolean;\n}\n\nexport interface ITypescaleMonospaceProps extends ITypescaleProps {\n  /** Renders with monospace font */\n  isMonospace?: boolean;\n}\n\nexport interface IBlockquoteProps extends BlockquoteHTMLAttributes<HTMLQuoteElement> {\n  /** Controls the spacing between sibling blockquotes and paragraphs */\n  size?: Size;\n}\n\nexport interface ICodeProps extends HTMLAttributes<HTMLElement> {\n  /** Applies color to the background and the text */\n  hue?: (typeof HUE)[number];\n  /** Adjusts the font size. By default font size is inherited from the surrounding text. */\n  size?: (typeof INHERIT_SIZE)[number];\n}\n\nexport interface ICodeBlockProps extends HTMLAttributes<HTMLPreElement> {\n  /** Selects the language used by the [Prism](https://prismjs.com/) tokenizer */\n  language?: (typeof LANGUAGES)[number];\n  /** Specifies the font size */\n  size?: Size;\n  /** Applies light mode styling */\n  isLight?: boolean;\n  /** Displays line numbers */\n  isNumbered?: boolean;\n  /** Determines the lines to highlight */\n  highlightLines?: number[];\n  /** Passes props to the code block container */\n  containerProps?: HTMLAttributes<HTMLDivElement>;\n}\n\nexport interface IEllipsisProps extends HTMLAttributes<HTMLDivElement> {\n  /** Overrides the auto-generated `title` attribute */\n  title?: string;\n  /** Updates the element's HTML tag */\n  tag?: any;\n}\n\nexport interface IKbdProps extends HTMLAttributes<HTMLElement> {\n  /** Adjusts the font size. By default font size is inherited from the surrounding text. */\n  size?: (typeof INHERIT_SIZE)[number];\n}\n\nexport interface IParagraphProps extends HTMLAttributes<HTMLParagraphElement> {\n  /** Controls the spacing between sibling paragraphs */\n  size?: Size;\n}\n\nexport interface IOrderedListProps extends Omit<OlHTMLAttributes<HTMLOListElement>, 'type'> {\n  /** Adjusts the vertical spacing between list items */\n  size?: Size;\n  /** Sets the marker style */\n  type?: (typeof TYPE_ORDERED_LIST)[number];\n}\n\nexport interface IUnorderedListProps extends HTMLAttributes<HTMLUListElement> {\n  /** Adjusts the vertical spacing between list items */\n  size?: Size;\n  /** Sets the marker style */\n  type?: (typeof TYPE_UNORDERED_LIST)[number];\n}\n\nexport interface ISpanProps extends HTMLAttributes<HTMLSpanElement> {\n  /** Updates the element's HTML tag */\n  tag?: any;\n  /** Applies bold font style. Font weight is inherited by default. */\n  isBold?: boolean;\n  /** Renders with monospace font */\n  isMonospace?: boolean;\n  /**\n   * Applies a font color. Use a [color\n   * variable](/components/theme-object#colors) key (i.e. `foreground.subtle`)\n   * or [PALETTE](/components/palette#palette) colors when possible. Accepts all\n   * hex values.\n   */\n  hue?: string;\n  /** Hides the span visually without hiding it from screen readers */\n  hidden?: HTMLAttributes<HTMLSpanElement>['hidden'];\n}\n",
+      "readme": "# @zendeskgarden/react-typography [![npm version](https://flat.badgen.net/npm/v/@zendeskgarden/react-typography)](https://www.npmjs.com/package/@zendeskgarden/react-typography)\n\nThis package includes components relating to typography in the\n[Garden Design System](https://zendeskgarden.github.io/).\n\n## Installation\n\n```sh\nnpm install @zendeskgarden/react-typography\n\n# Peer Dependencies - Also Required\nnpm install react react-dom styled-components @zendeskgarden/react-theming\n```\n\n## Usage\n\n```jsx\nimport { ThemeProvider } from '@zendeskgarden/react-theming';\nimport { SM } from '@zendeskgarden/react-typography';\n\n/**\n * Place a `ThemeProvider` at the root of your React application\n */\n<ThemeProvider>\n  <SM>This is some small body text</SM>;\n</ThemeProvider>;\n```\n",
+      "docs": "https://garden.zendesk.com/components/typography"
+    }
+  }
+}

@@ -29,6 +29,10 @@
         "label": "Fundir contatos duplicados automaticamente",
         "helpText": "Desligado por padrão. Ligado, abrir um ticket WhatsApp funde um único duplicado comprovado sem perguntar. A fusão de perfis Support não pode ser desfeita."
       },
+      "auto_merge_tickets": {
+        "label": "Unir registro de envio à conversa WhatsApp automaticamente",
+        "helpText": "Desligado por padrão. Ligado, o ticket WhatsApp ativo · … é unido à conversa nativa do mesmo contato. Independente da fusão de perfis."
+      },
       "outbound_service_host": {
         "label": "Servidor de envio (domínio HTTPS)",
         "helpText": "Opcional. Sem esta conexão, o histórico e a fusão continuam disponíveis."
@@ -37,6 +41,17 @@
         "label": "Credencial do serviço de envio",
         "helpText": "Credencial privada do serviço hospedado pela sua equipe. Não é o token da API Zendesk."
       }
+    },
+    "send_conflict": {
+      "assign_body": "Já existe o ticket #{id} dentro da janela de 24h. Atribua a conversa a você em vez de enviar um template.",
+      "assign_action": "Atribuir a mim",
+      "stale_body": "O ticket #{id} está aberto, mas a janela de 24h já passou. Feche e abra um novo ou una o atual no ticket que será criado.",
+      "close_and_new": "Fechar atual e abrir novo",
+      "merge_into_new": "Unir no ticket novo",
+      "cancel": "Cancelar",
+      "assigned": "Ticket #{id} atribuído a você.",
+      "sent_assigned": "Envio solicitado e atribuído ao ticket #{id}. Entrega ainda não confirmada.",
+      "sent_merged_new": "Envio solicitado e unido no ticket #{id}."
     }
   }
 }

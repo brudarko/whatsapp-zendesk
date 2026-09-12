@@ -16,6 +16,7 @@ test('window uses latest client reply in scoped Sunshine history, including olde
  },now);
  assert.equal(result.remaining,22*3600000);
  assert.equal(result.lastInbound,Date.parse('2026-09-08T18:00:00Z'));
+ assert.equal(result.conversationId,conversation);
  assert.ok(paths.at(-1).endsWith('page[before]=cursor%2F%3F'));
  assert.equal(windowDuration(1224*60000),'20h 24min');
  assert.equal(windowDuration(24*3600000),'24h');

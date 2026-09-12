@@ -302,16 +302,14 @@ footer {
 .cm-preview > span { color: var(--muted); font-size: 12px; }
 .cm-preview p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0 0; }
 .cm-result { margin-top: 12px; }
-.cm-filter { display: flex; align-items: center; gap: 12px; margin: 12px 0 20px; }
-.cm-filter > div:first-child { flex: 1 1 auto; min-width: 0; }
-.cm-count { white-space: nowrap; font-size: 12px; }
-.cm-timeline { margin: 0; }
-.cm-timeline time { font-variant-numeric: tabular-nums; }
+.cm-conflict-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.cm-sends { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.cm-sends .card { margin: 0; }
 .cm-history-meta { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; font-size: 11px; color: var(--muted); }
-.cm-history-meta > span { font-weight: 600; }
-.cm-message-body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 10px 0; }
-.cm-message-details { padding: 10px 0; }
-.cm-footnote { margin-top: 16px; }
+.cm-history-meta time { font-variant-numeric: tabular-nums; }
+.cm-history-meta [role="status"] { font-weight: 600; }
+.cm-message-body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 10px 0 0; }
+.cm-message-details { padding: 0; }
 
 .contacts-workspace > h2 { margin-bottom: 16px; }
 .contacts-results { margin-top: 20px; }

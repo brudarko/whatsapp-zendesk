@@ -84,7 +84,9 @@ function App() {
     [loading, setLoading] = useState(true),
     [now, setNow] = useState(Date.now());
   const [autoBusy, setAutoBusy] = useState(false);
+  const [ticketMerge, setTicketMerge] = useState(null);
   const autoChecked = useRef(new Set()), autoTicket = useRef(""), autoMerge = useRef(false), autoRunning = useRef(false);
+  const ticketMergeTried = useRef(new Set());
   const operation = useRef(false),
     version = useRef(0);
   async function refresh(loc = location) {
@@ -94,9 +96,31 @@ function App() {
     setData(values);
     const loaded = values;
     autoTicket.current = `${values.ticket?.id}:${values.ticket?.requester?.id}`;
-    if (!autoMerge.current || loc !== "ticket_sidebar" || !values.ticket?.id || operation.current || autoRunning.current) return loaded;
+    const offerTicketMerge = () => {
+      if (loc !== "ticket_sidebar" || !values.ticket?.id) { setTicketMerge(null); return; }
+      api.findTicketMerge(values.ticket.id).then(async offer => {
+        if (!offer?.sources?.length || !offer.target) { setTicketMerge(null); return; }
+        if (await api.autoMergeTicketsEnabled().catch(() => false)) {
+          const mergeKey = `tickets:${values.ticket.id}:${offer.target.id}`;
+          if (ticketMergeTried.current.has(mergeKey)) { setTicketMerge(offer); return; }
+          ticketMergeTried.current.add(mergeKey);
+          const merged = await api.mergeRecordTickets(values.ticket.requester.id, { auto: true, preferSource: values.ticket.id });
+          if (merged.merged) {
+            setTicketMerge(null);
+            setNotice(`Tickets unidos no #${merged.ticketId}.`);
+          } else setTicketMerge(offer);
+        } else setTicketMerge(offer);
+      }).catch(() => setTicketMerge(null));
+    };
+    if (!autoMerge.current || loc !== "ticket_sidebar" || !values.ticket?.id || operation.current || autoRunning.current) {
+      offerTicketMerge();
+      return loaded;
+    }
     const key = `${values.ticket.id}:${values.ticket.requester?.id}`;
-    if (autoChecked.current.has(key)) return loaded;
+    if (autoChecked.current.has(key)) {
+      offerTicketMerge();
+      return loaded;
+    }
     autoChecked.current.add(key);
     // Trava própria: a verificação automática não pode bloquear as ações do agente,
     // que são serializadas por run(). Antes ela tomava o mesmo mutex e, enquanto
@@ -136,6 +160,7 @@ function App() {
       autoRunning.current = false;
       setAutoBusy(false);
     }
+    offerTicketMerge();
     return loaded;
   }
   async function run(action) {
@@ -221,7 +246,7 @@ function App() {
         <Tabs selectedItem={view} onChange={id => { setView(id); setError(""); setNotice(""); }}>
         {location !== "top_bar" && <div className="app-tab-scroll"><Tabs.TabList aria-label="Áreas do aplicativo">
           {[
-            ...(location === "user_sidebar" ? [["messages", "Enviar"], ["history", "Histórico"]] : []),
+            ...(["user_sidebar", "ticket_sidebar"].includes(location) ? [["messages", "Enviar"], ["history", "Histórico"]] : []),
             ...(["ticket_sidebar", "ticket_editor"].includes(location) ? [["templates", "Templates"]] : []),
             ...(location === "nav_bar" ? [] : [["contacts", "Duplicados"]]),
             ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["meta", "Gerenciar templates"], ["setup", "Configurações"]] : []),
@@ -230,6 +255,14 @@ function App() {
         <Tabs.TabPanel item={view} className="app-panel">
         {error && <Notice danger>{error}</Notice>}
         {notice && <Notice>{notice}</Notice>}
+        {ticketMerge?.target && location === "ticket_sidebar" && <Notice>
+          <p>Há um registro de envio separado desta conversa.</p>
+          <Button size="small" disabled={busy} onClick={() => run(async () => {
+            const merged = await api.mergeRecordTickets(data.ticket.requester.id, { auto: true, preferSource: data.ticket.id });
+            setTicketMerge(null);
+            setNotice(merged.merged ? `Tickets unidos no #${merged.ticketId}.` : "Não havia tickets para unir.");
+          })}>Unir ao ticket #{ticketMerge.target.id}</Button>
+        </Notice>}
         {location === "nav_bar" && data.currentUser && data.currentUser.role !== "admin" &&
           <Notice>Esta página é para administradores. Use o app no ticket ou no perfil do contato.</Notice>}
         {loading ? (
@@ -270,7 +303,7 @@ function App() {
                 <LocalConnection api={api} busy={busy} run={run} />
                 {(typeof LOCAL_SERVICE === "undefined" ? true : LOCAL_SERVICE) && <Disclosure title="Diagnóstico">
                   <p>{connected ? "Zendesk conectado." : "Aguardando conexão com o Zendesk."}</p>
-                  <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} />
+                  <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} busy={busy} run={run} notice={setNotice} />
                 </Disclosure>}
               </section>
             )}
@@ -370,9 +403,10 @@ function Contacts({ data, location, run, busy, notice, refresh }) {
     [failedCriteria, setFailedCriteria] = useState([]),
     [review, setReview] = useState(null),
     [confirmed, setConfirmed] = useState(false),
-    [lossesAccepted, setLossesAccepted] = useState(false);
+    [lossesAccepted, setLossesAccepted] = useState(false),
+    [sunshineIds, setSunshineIds] = useState(null);
   const requester = data.customer ?? data.ticket?.requester;
-  const resetReview = () => { setReview(null); setConfirmed(false); setLossesAccepted(false); };
+  const resetReview = () => { setReview(null); setConfirmed(false); setLossesAccepted(false); setSunshineIds(null); };
   async function preview(sourceId, targetId) {
     resetReview();
     setReview(await api.previewMerge(sourceId, targetId));
@@ -437,11 +471,20 @@ function Contacts({ data, location, run, busy, notice, refresh }) {
         notice(result.verified
           ? `Contatos fundidos no Zendesk. Perfil principal #${result.survivor.user.id}.`
           : "Zendesk aceitou a fusão, mas a consulta do perfil principal falhou. Confira o resultado antes de continuar.");
+        if (result.messaging?.length >= 2) setSunshineIds(result.messaging);
         if (location === "user_sidebar" && String(selected.source.user.id) === String(requester.id)) {
           await client.invoke("routeTo", "user", selected.target.user.id);
         } else await refresh();
       })}>Fundir contatos</Button>
     </div>}
+    {sunshineIds?.length >= 2 && <Notice>
+      <p>Há mais de um usuário Sunshine neste perfil. A fusão Support não une o Sunshine.</p>
+      <Button size="small" disabled={busy} onClick={() => run(async () => {
+        await api.mergeSunshineUsers(sunshineIds[0], sunshineIds[1]);
+        setSunshineIds(null);
+        notice("Usuários Sunshine unidos.");
+      })}>Unir no Sunshine</Button>
+    </Notice>}
   </section>;
 }
 

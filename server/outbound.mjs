@@ -9,7 +9,10 @@ export async function sendRecordedTicket(ticketId, { api, sunshine, scope, claim
   if (!ticket?.tags?.includes("whatsapp_active_message") || ticket.status === "closed") throw new Error("Ticket de envio inválido ou fechado.");
   const page = await api.request(`/api/v2/tickets/${id}/comments.json?sort_order=asc`);
   const comment = page.comments?.[0];
-  const text = comment?.plain_body ?? comment?.body;
+  const text = [comment?.body, comment?.plain_body]
+    .filter(t => typeof t === "string")
+    .map(t => t.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"))
+    .find(t => t.startsWith(RECORD_PREFIX)) ?? comment?.plain_body ?? comment?.body;
   if (comment?.public !== false || !text?.startsWith(RECORD_PREFIX)) throw new Error("Registro de envio ausente.");
   const record = JSON.parse(text.slice(RECORD_PREFIX.length));
   if (![1, 2].includes(record.version) || (record.version === 1 && (record.consent !== true || record.approved !== true)) || String(ticket.requester_id) !== String(record.userId)) throw new Error("Registro de envio inconsistente.");

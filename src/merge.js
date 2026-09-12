@@ -66,3 +66,34 @@ export function automaticMergeReason(review) {
       return "Existem identidades verificadas diferentes. Revise os perfis.";
   return "";
 }
+
+function isOpenTicket(ticket) {
+  return ticket && ticket.status !== "closed" && ticket.status !== "deleted";
+}
+
+export function isRecordTicket(ticket) {
+  return (ticket?.tags ?? []).includes("whatsapp_active_message");
+}
+
+export function isConversationTicket(ticket) {
+  return ["whatsapp", "native_messaging"].includes(ticket?.via?.channel);
+}
+
+export function pickMergeTarget(tickets) {
+  return [...tickets]
+    .filter((ticket) => isOpenTicket(ticket) && isConversationTicket(ticket))
+    .sort((a, b) => (Date.parse(b.updated_at) || 0) - (Date.parse(a.updated_at) || 0))[0] || null;
+}
+
+export function pickMergeSources(tickets, targetId) {
+  return tickets.filter((ticket) => isOpenTicket(ticket) && isRecordTicket(ticket)
+    && !isConversationTicket(ticket) && String(ticket.id) !== String(targetId));
+}
+
+export function resolveTicketMerge(tickets, currentId) {
+  const current = tickets.find((ticket) => String(ticket.id) === String(currentId));
+  if (current && !isOpenTicket(current)) return { target: null, sources: [] };
+  const target = current && isConversationTicket(current) ? current : pickMergeTarget(tickets);
+  if (!target) return { target: null, sources: [] };
+  return { target, sources: pickMergeSources(tickets, target.id) };
+}

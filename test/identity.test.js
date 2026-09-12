@@ -13,10 +13,13 @@ test("BSUID without phone resolves and produces the original opaque destination"
   assert.notEqual(identity.identityKey, resolveWhatsApp(contact, [client], { ...scope, portfolioId: "another" }).identityKey);
 });
 test("pending, unrelated clients, wrong integration and conflicts cannot become destinations", () => {
-  for (const clients of [[], [{ ...client, status: "pending" }], [{ ...client, messagingUserId: "other" }], [{ ...client, integrationId: "other" }], [client, { ...client, externalId: "BR.other" }]]) {
+  for (const clients of [[], [{ ...client, status: "pending" }], [{ ...client, status: "blocked" }], [{ ...client, messagingUserId: "other" }], [{ ...client, integrationId: "other" }], [client, { ...client, externalId: "BR.other" }]]) {
     assert.throws(() => notificationDestination(resolveWhatsApp(contact, clients, scope), scope));
   }
-  assert.equal(resolveWhatsApp(contact, [client], { ...scope, portfolioId: "" }).state, "unconfigured");
+  assert.equal(resolveWhatsApp(contact, [{ ...client, status: "blocked" }], scope).state, "blocked");
+  assert.equal(resolveWhatsApp(contact, [client], { ...scope, portfolioId: "" }).state, "resolved");
+  assert.deepEqual(notificationDestination(resolveWhatsApp(contact, [client], { ...scope, portfolioId: "" }), { appId: scope.appId, integrationId: scope.integrationId }),
+    { integrationId: scope.integrationId, destinationId: "BR.opaque_123-xyz" });
 });
 test("legacy phone remains routable without inserting a ninth digit; BSUID never becomes phone", () => {
   assert.deepEqual(whatsappIdentifier("551187654321"), { type: "phone", value: "+551187654321" });

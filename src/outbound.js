@@ -54,28 +54,45 @@ export function parseTemplate(text, parameters) {
     throw new Error("Formato de template não suportado para envio direto.");
   const values = {};
   for (const [, key, value] of fields) {
-    if (!["template", "language", "fallback", "body_text", "header_text", "header_image", "header_document"].includes(key) || (key !== "body_text" && values[key]))
+    if (!["template", "language", "fallback", "body_text", "header_text", "header_image", "header_document", "flow"].includes(key) || (key !== "body_text" && values[key]))
       throw new Error("Campos do template inválidos ou repetidos.");
     (values[key] ??= []).push(value);
   }
   const headers = ["text", "image", "document"].filter(k => values[`header_${k}`]);
   if (headers.length > 1) throw new Error("Mais de um cabeçalho no template.");
+  if (values.flow && values.flow[0] !== "1") throw new Error("Campos do template inválidos ou repetidos.");
   const original = values.body_text ?? [];
   const body = parameters ?? original;
   if (!Array.isArray(body) || body.length !== original.length || body.some(v => typeof v !== "string" || !v.trim() || v.length > 1024 || /\{\{/.test(v)))
     throw new Error("Preencha todas as variáveis do template.");
   const config = { name: values.template?.[0], language: values.language?.[0], fallback: values.fallback?.[0], parameters: body,
-    headerType: headers[0] || "", headerValue: headers.length ? values[`header_${headers[0]}`][0] : "" };
+    headerType: headers[0] || "", headerValue: headers.length ? values[`header_${headers[0]}`][0] : "",
+    flow: values.flow?.[0] === "1" };
   shorthand(config); // Reuse catalogue validation, including delimiters and media URLs.
   const components = [];
   if (config.headerType) components.push({ type: "header", parameters: [config.headerType === "text"
     ? { type: "text", text: config.headerValue }
     : { type: config.headerType, [config.headerType]: { link: config.headerValue } }] });
   if (body.length) components.push({ type: "body", parameters: body.map(text => ({ type: "text", text })) });
+  if (config.flow) components.push({
+    type: "button", sub_type: "flow", index: "0",
+    parameters: [{ type: "action", action: { flow_token: "zendesk" } }],
+  });
   return { config, message: { type: "template", template: { name: config.name,
     language: { policy: "deterministic", code: config.language }, ...(components.length ? { components } : {}) } } };
 }
 
 export function sendRecord({ userId, macroId, parameters }) {
   return { version: 2, userId: safeId(userId), macroId: safeId(macroId), parameters };
+}
+
+export function previewSendRecord(record) {
+  if (record?.templateText) {
+    try {
+      const text = parseTemplate(record.templateText, record.parameters).config.fallback;
+      if (text) return text;
+    } catch { /* fall through to parameters */ }
+  }
+  if (record?.parameters?.length) return record.parameters.join(" · ");
+  return "Mensagem ativa";
 }
