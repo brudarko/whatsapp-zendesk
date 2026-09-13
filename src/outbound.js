@@ -46,6 +46,36 @@ export function destinationPhone(value, country = "BR") {
 }
 
 export const RECORD_PREFIX = "WhatsApp Active Messages v1\n";
+// Separa o texto lido pelo agente do bloco de dados consumido pelo serviço de envio.
+// Mantemos o RECORD_PREFIX como primeira linha (marcador histórico); o JSON vem
+// após este marcador. Tickets antigos não têm o marcador e caem no formato legado.
+export const RECORD_DATA_MARKER = "\nDados do envio (não edite este bloco):\n";
+
+// Comentário interno único do ticket temporário: explica a natureza do ticket e
+// registra quem enviou, quando e qual template, sem perder os dados de máquina.
+export function recordCommentBody(record, { agentName, sentAt, templateLabel } = {}) {
+  const when = sentAt ? new Date(sentAt) : new Date();
+  const stamp = Number.isNaN(when.getTime()) ? "" : when.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const lines = [
+    "Ticket temporário de envio ativo pelo WhatsApp.",
+    "Assim que o cliente responder, ele é unido automaticamente ao ticket da conversa do WhatsApp.",
+  ];
+  if (agentName && stamp) lines.push(`Enviado por ${agentName} em ${stamp}.`);
+  else if (agentName) lines.push(`Enviado por ${agentName}.`);
+  else if (stamp) lines.push(`Enviado em ${stamp}.`);
+  if (templateLabel) lines.push(`Template: ${templateLabel}.`);
+  return RECORD_PREFIX + lines.join("\n") + RECORD_DATA_MARKER + JSON.stringify(record);
+}
+
+// Lê o registro tanto do formato novo (texto + marcador + JSON) quanto do legado
+// (RECORD_PREFIX + JSON puro). Devolve null quando o comentário não é um registro.
+export function parseRecordComment(text) {
+  if (typeof text !== "string" || !text.startsWith(RECORD_PREFIX)) return null;
+  const rest = text.slice(RECORD_PREFIX.length);
+  const at = rest.lastIndexOf(RECORD_DATA_MARKER);
+  const json = at >= 0 ? rest.slice(at + RECORD_DATA_MARKER.length) : rest;
+  try { return JSON.parse(json.trim()); } catch { return null; }
+}
 export function parseTemplate(text, parameters) {
   if (typeof text !== "string" || !/^&\(\([\s\S]*\)\)&$/.test(text.trim()) || /\{\{/.test(text))
     throw new Error("Use um template estático do catálogo, sem variáveis Zendesk.");

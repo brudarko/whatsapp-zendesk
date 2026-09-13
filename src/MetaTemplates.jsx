@@ -4,7 +4,7 @@ import { Field, Label, Hint, Input, Textarea, Select, Checkbox } from '@zendeskg
 import { Tabs } from '@zendeskgarden/react-tabs';
 import { Table } from '@zendeskgarden/react-tables';
 import { Stepper } from '@zendeskgarden/react-accordions';
-import { Notice } from './GardenUI.jsx';
+import { Notice, LoadingSkeleton } from './GardenUI.jsx';
 import { metaTemplate, catalogEntry, catalogSendLabel } from './metaTemplate.js';
 import { shorthand, catalogMatch } from './domain.js';
 import { templateTypes, variables, sampleText, requiresMeta } from './templateTypes.js';
@@ -152,13 +152,13 @@ function CatalogPublish({item,entry,groups,api,busy,run,onSaved}){
 export function MetaTemplates({api,busy,run,groups=[]}){
   const [mode,setMode]=useState('list'),[draft,setDraft]=useState(newDraft),[items,setItems]=useState(null),[caps,setCaps]=useState({advanced:false,media:false});
   const [error,setError]=useState(''),[loading,setLoading]=useState(true),[attempted,setAttempted]=useState(false),[uploading,setUploading]=useState(false),[created,setCreated]=useState(null);
-  const [search,setSearch]=useState(''),[filter,setFilter]=useState(''),[selected,setSelected]=useState(null),[probe,setProbe]=useState(null);
+  const [search,setSearch]=useState(''),[filter,setFilter]=useState(''),[selected,setSelected]=useState(null);
   const [typeCategory,setTypeCategory]=useState('UTILITY'),[catalog,setCatalog]=useState([]);
   const loadCatalog=async()=>{try{setCatalog(await api.catalogEntries());}catch{setCatalog([]);}};
   const heading=useRef(null);const type=templateTypes.find(t=>t.id===draft.kind),locked=busy||attempted||uploading;
   const update=patch=>{setDraft(d=>({...d,...patch}));setError('');};
-  const load=async()=>{setLoading(true);setError('');try{const [list,capabilities]=await Promise.all([api.metaTemplates(),api.metaTemplates(undefined,'capabilities')]);setItems(list.data);setCaps(capabilities);setProbe(list.probe||null);try{await api.syncSendCatalog(list.data);}catch{/* a lista da Meta não depende do catálogo Zendesk */}await loadCatalog();}catch(e){setError(describeZafError(e));setProbe(e.probe||null);}finally{setLoading(false);}};
-  useEffect(()=>{let active=true;(async()=>{setLoading(true);try{const [list,c]=await Promise.all([api.metaTemplates(),api.metaTemplates(undefined,'capabilities')]);if(!active)return;setItems(list.data);setCaps(c);setProbe(list.probe||null);try{await api.syncSendCatalog(list.data);}catch{}if(!active)return;try{setCatalog(await api.catalogEntries());}catch{if(active)setCatalog([]);} }catch(e){if(active){setError(describeZafError(e));setProbe(e.probe||null);}}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[api]);
+  const load=async()=>{setLoading(true);setError('');try{const [list,capabilities]=await Promise.all([api.metaTemplates(),api.metaTemplates(undefined,'capabilities')]);setItems(list.data);setCaps(capabilities);try{await api.syncSendCatalog(list.data);}catch{/* a lista da Meta não depende do catálogo Zendesk */}await loadCatalog();}catch(e){setError(describeZafError(e));}finally{setLoading(false);}};
+  useEffect(()=>{let active=true;(async()=>{setLoading(true);try{const [list,c]=await Promise.all([api.metaTemplates(),api.metaTemplates(undefined,'capabilities')]);if(!active)return;setItems(list.data);setCaps(c);try{await api.syncSendCatalog(list.data);}catch{}if(!active)return;try{setCatalog(await api.catalogEntries());}catch{if(active)setCatalog([]);} }catch(e){if(active){setError(describeZafError(e));}}finally{if(active)setLoading(false);}})();return()=>{active=false;};},[api]);
   useEffect(()=>{heading.current?.focus();},[mode]);
   const choose=kind=>{setDraft(newDraft(kind));setAttempted(false);setCreated(null);setError('');setMode('edit');};
   const blocked=type.external||requiresMeta(draft)&&!caps.advanced;
@@ -175,10 +175,9 @@ export function MetaTemplates({api,busy,run,groups=[]}){
       {mode==='list'?<div className="tm-actions"><Button disabled={busy||loading} onClick={load}>Atualizar</Button><Button isPrimary disabled={busy} onClick={()=>{setMode('choose');setSelected(null);setError('');}}>Criar template</Button></div>:<Button disabled={busy||uploading} isBasic onClick={()=>{if(!attempted&&mode==='review')setMode('edit');else if(mode==='edit')setMode('choose');else{setMode('list');setSelected(null);}setError('');}}>{mode==='review'&&!attempted?'Editar':'Voltar'}</Button>}
     </header>
     {error&&<Notice danger>{error}</Notice>}
-    {mode==='list'&&probe&&<Notice><strong>Diagnóstico Sunshine</strong><pre style={{margin:'8px 0 0',font:'12px/1.4 ui-monospace,monospace',whiteSpace:'pre-wrap'}}>{JSON.stringify(probe,null,2)}</pre></Notice>}
     {mode==='list'&&<>
       <div className="tm-toolbar"><TextField label="Buscar templates" value={search} onChange={setSearch} placeholder="Buscar pelo nome"/><Choice label="Status" value={filter} onChange={setFilter} options={[["","Todos os status"],...Object.entries(statuses)]}/></div>
-      {loading?<div className="tm-empty" role="status">Carregando templates…</div>:!error&&!visible.length?<div className="tm-empty"><h2>{items?.length?'Nenhum resultado':'Nenhum template cadastrado'}</h2><p>{items?.length?'Tente outro nome ou status.':''}</p>{!items?.length&&<Button isPrimary onClick={()=>setMode('choose')}>Criar template</Button>}</div>:!error&&<div className="tm-list-layout"><div className="tm-table-wrap"><Table><Table.Head><Table.HeaderRow><Table.HeaderCell>Mensagem</Table.HeaderCell><Table.HeaderCell>Categoria</Table.HeaderCell><Table.HeaderCell>Status</Table.HeaderCell><Table.HeaderCell>Envio ativo</Table.HeaderCell></Table.HeaderRow></Table.Head><Table.Body>{visible.map(t=><Table.Row key={`${t.id}:${t.language}`} isSelected={selected?.name===t.name&&selected?.language===t.language}><Table.Cell>{(e=><>
+      {loading?<LoadingSkeleton label="Carregando templates…" />:!error&&!visible.length?<div className="tm-empty"><h2>{items?.length?'Nenhum resultado':'Nenhum template cadastrado'}</h2><p>{items?.length?'Tente outro nome ou status.':''}</p>{!items?.length&&<Button isPrimary onClick={()=>setMode('choose')}>Criar template</Button>}</div>:!error&&<div className="tm-list-layout"><div className="tm-table-wrap"><Table><Table.Head><Table.HeaderRow><Table.HeaderCell>Mensagem</Table.HeaderCell><Table.HeaderCell>Categoria</Table.HeaderCell><Table.HeaderCell>Status</Table.HeaderCell><Table.HeaderCell>Envio ativo</Table.HeaderCell></Table.HeaderRow></Table.Head><Table.Body>{visible.map(t=><Table.Row key={`${t.id}:${t.language}`} isSelected={selected?.name===t.name&&selected?.language===t.language}><Table.Cell>{(e=><>
   <button className="tm-link" onClick={()=>{setSelected(t);setMode('catalog');setError('');}}>{e?.label||t.name}</button>
   {e?.useCase&&<small className="tm-row-use-case">{e.useCase}</small>}
   <small>{e?`${t.name} · ${t.language}`:t.language}</small>

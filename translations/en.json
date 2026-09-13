@@ -32,19 +32,11 @@
       "auto_merge_tickets": {
         "label": "Merge the send record into the WhatsApp conversation automatically",
         "helpText": "Off by default. When on, the WhatsApp ativo ticket is merged into the native conversation for the same requester. Independent of contact merge."
-      },
-      "outbound_service_host": {
-        "label": "Outbound service host (HTTPS domain)",
-        "helpText": "Optional. History and merge remain available without this connection."
-      },
-      "outbound_service_token": {
-        "label": "Outbound service credential",
-        "helpText": "Private credential for the service hosted by your team. Not the Zendesk API token."
       }
     },
     "send_conflict": {
-      "assign_body": "Ticket #{id} is already open inside the 24-hour window. Assign the conversation to yourself instead of sending a template.",
-      "assign_action": "Assign to me",
+      "assign_body": "Ticket #{id} is already open inside the 24-hour window. Open the conversation instead of sending a template.",
+      "assign_action": "Open ticket",
       "stale_body": "Ticket #{id} is still open, but the 24-hour window has ended. Close it and open a new ticket, or merge it into the new one that will be created.",
       "close_and_new": "Close current and open new",
       "merge_into_new": "Merge into the new ticket",

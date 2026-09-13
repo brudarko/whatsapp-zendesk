@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Field, Label, Hint, Input, Select } from "@zendeskgarden/react-forms";
 import { Button } from "@zendeskgarden/react-buttons";
-import { CustomerMessages, LocalConnection } from "./CustomerMessages.jsx";
+import { CustomerMessages, OpenWindowNotice } from "./CustomerMessages.jsx";
 import { Notice } from "./GardenUI.jsx";
 import { destinationPhone, formatPhone, formatPhoneInput, looksLikePhone, getCountries, getCountryCallingCode } from "./outbound.js";
 
@@ -16,7 +16,29 @@ export function TopBarMessages({ data, api, busy, run, notice }) {
   const [query, setQuery] = useState(""), [results, setResults] = useState(null);
   const [name, setName] = useState(""), [customer, setCustomer] = useState(null);
   const [country, setCountry] = useState("BR");
+  const [windowConflict, setWindowConflict] = useState(null);
   const byPhone = looksLikePhone(query);
+  useEffect(() => {
+    if (customer || !byPhone) { if (!customer) setWindowConflict(null); return; }
+    let phone;
+    try { phone = destinationPhone(query, country); }
+    catch { setWindowConflict(null); return; }
+    let alive = true;
+    const timer = setTimeout(() => {
+      api.searchCustomers(phone, "phone").then(async found => {
+        for (const user of found.filter(sendable)) {
+          const value = await api.findSendConflict(user.id);
+          if (!alive) return;
+          if (value?.action === "assign" && value.ticket) {
+            setWindowConflict({ ...value, user });
+            return;
+          }
+        }
+        if (alive) setWindowConflict(null);
+      }).catch(() => { if (alive) setWindowConflict(null); });
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [query, country, byPhone, customer, api]);
   if (customer) return <section>
     <Button disabled={busy} size="small" onClick={() => { setCustomer(null); setResults(null); }}>Escolher outro destinatário</Button>
     <CustomerMessages customer={customer} data={data} api={api} location="top_bar" busy={busy} run={run} notice={notice} />
@@ -58,7 +80,14 @@ export function TopBarMessages({ data, api, busy, run, notice }) {
       </div>
       <Button type="submit" isPrimary disabled={busy || query.trim().length < 2}>Buscar contato</Button>
     </form>
-    {results?.length > 0 && <div className="tb-results">
+    {windowConflict?.ticket && <div className="tb-results">
+      {windowConflict.user && <div className="customer cm-recipient">
+        <strong>{windowConflict.user.name}</strong>
+        <span>{formatPhone(windowConflict.user.phone)}</span>
+      </div>}
+      <OpenWindowNotice ticketId={windowConflict.ticket.id} api={api} busy={busy} run={run} />
+    </div>}
+    {windowConflict?.ticket ? null : results?.length > 0 && <div className="tb-results">
       <p className="cm-muted cm-count">{results.length} {results.length === 1 ? "contato" : "contatos"}</p>
       {results.map(user => <button className="template" key={user.id} disabled={busy} onClick={() => run(async () => {
         const fresh = await api.contact(user.id);

@@ -1,25 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Field, Label, Input, Select } from "@zendeskgarden/react-forms";
 import { Button } from "@zendeskgarden/react-buttons";
+import { Spinner } from "@zendeskgarden/react-loaders";
 import { parseTemplate, formatPhone } from "./outbound.js";
-import { sendStatusLabel } from "./sendStatus.js";
-import { Notice } from "./GardenUI.jsx";
+import { Notice, LoadingSkeleton } from "./GardenUI.jsx";
+import { MessagePreview, StatusTag } from "./AppChrome.jsx";
 import { isLocalApp } from "./localConnection.js";
-
-function ReadReceipt({ ticketId, api }) {
-  const [label, setLabel] = useState("Sem confirmação de leitura");
-  useEffect(() => {
-    if (!ticketId) return;
-    let alive = true;
-    const load = () => api.sendStatuses([ticketId]).then(({ sends = {} }) => {
-      if (alive) setLabel(sendStatusLabel(sends[String(ticketId)]));
-    }).catch(() => {});
-    load();
-    const timer = setInterval(load, 8000);
-    return () => { alive = false; clearInterval(timer); };
-  }, [ticketId, api]);
-  return <p role="status" className="cm-muted">{label}</p>;
-}
 
 // Long histories stay readable: show the opening of the message and let the agent
 // expand it in place. The label names the state it goes to, not the current one.
@@ -54,65 +40,6 @@ function DevLocalConnection({ api, busy, run, onConnected }) {
 export const LocalConnection = (typeof LOCAL_SERVICE === "undefined" ? true : LOCAL_SERVICE)
   ? DevLocalConnection : () => null;
 
-function fileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = String(reader.result || "");
-      const comma = text.indexOf(",");
-      resolve(comma >= 0 ? text.slice(comma + 1) : text);
-    };
-    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
-    reader.readAsDataURL(file);
-  });
-}
-
-function SessionComposer({ customer, ticketId, api, busy, run, notice }) {
-  const [windowState, setWindowState] = useState(null);
-  const [kind, setKind] = useState("image");
-  const [file, setFile] = useState(null);
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
-  useEffect(() => {
-    if (!ticketId && !customer.id) return;
-    let alive = true;
-    const load = () => {
-      const request = ticketId ? api.serviceWindow(ticketId) : api.contactWindow(customer.id);
-      request.then(value => { if (alive) setWindowState(value); }).catch(() => { if (alive) setWindowState(null); });
-    };
-    load();
-    const timer = setInterval(load, 60000);
-    return () => { alive = false; clearInterval(timer); };
-  }, [ticketId, customer.id, api]);
-  if (windowState?.state !== "open" || !windowState.conversationId) return null;
-  return <div className="card cm-session">
-    <h3>Janela de 24h</h3>
-    <p className="cm-muted">Imagem, áudio, arquivo ou localização. Não substitui o compositor do Agent Workspace.</p>
-    <Field className="cm-field"><Label>Tipo</Label>
-      <Select value={kind} disabled={busy} onChange={e => setKind(e.target.value)}>
-        <option value="image">Imagem</option>
-        <option value="file">Áudio ou arquivo</option>
-        <option value="location">Localização</option>
-      </Select>
-    </Field>
-    {kind !== "location" ? <Field className="cm-field"><Label>{kind === "image" ? "Imagem" : "Arquivo"}</Label>
-      <Input type="file" accept={kind === "image" ? "image/*" : "audio/*,.pdf,.doc,.docx,.xls,.xlsx"} disabled={busy} onChange={e => setFile(e.target.files?.[0] || null)} />
-    </Field> : <>
-      <Field className="cm-field"><Label>Latitude</Label><Input value={lat} disabled={busy} onChange={e => setLat(e.target.value)} /></Field>
-      <Field className="cm-field"><Label>Longitude</Label><Input value={lng} disabled={busy} onChange={e => setLng(e.target.value)} /></Field>
-    </>}
-    <Button disabled={busy || (kind === "location" ? !lat || !lng : !file)} onClick={() => run(async () => {
-      const content = kind === "location"
-        ? { type: "location", coordinates: { lat: Number(lat), long: Number(lng) } }
-        : { type: kind === "image" ? "image" : "file", file: { name: file.name, type: file.type || "application/octet-stream", data: await fileAsBase64(file) } };
-      await api.sendSession({ userId: customer.id, ticketId, conversationId: windowState.conversationId, content });
-      notice("Mensagem da janela enviada. Entrega ainda não confirmada.");
-      setFile(null);
-    })}>Enviar na janela</Button>
-  </div>;
-}
-
-
 export function CustomerSummary({ customer }) {
   return <div className="customer cm-recipient"><strong>{customer.name}</strong><span>{formatPhone(customer.phone) || "Contato identificado pelo WhatsApp"}</span></div>;
 }
@@ -126,7 +53,17 @@ function sendNotice(value) {
   return value.state === "accepted" ? "Envio solicitado. Entrega ainda não confirmada." : value.message;
 }
 
-export function CustomerMessages({ customer, data, api, location, busy, run, notice, pane = "messages", onTemplates }) {
+export function OpenWindowNotice({ ticketId, currentTicketId, api, busy, run }) {
+  if (currentTicketId != null && String(ticketId) === String(currentTicketId)) return null;
+  return <Notice>
+    <p>Já existe o ticket #{ticketId} dentro da janela de 24h. Abra a conversa em vez de enviar um template.</p>
+    <div className="cm-conflict-actions">
+      <Button isPrimary disabled={busy} onClick={() => run(() => api.openTicket(ticketId))}>Abrir ticket</Button>
+    </div>
+  </Notice>;
+}
+
+export function CustomerMessages({ customer, data, api, location, busy, run, notice, pane = "messages", children }) {
   const sendOnly = location === "top_bar", showHistory = !sendOnly && pane === "history";
   const showSend = sendOnly || pane === "messages";
   const [history, setHistory] = useState(null), [error, setError] = useState("");
@@ -143,7 +80,7 @@ export function CustomerMessages({ customer, data, api, location, busy, run, not
     return () => { alive = false; };
   }, [customer.id, api]);
   useEffect(() => {
-    setResult(null); setAttempted(false); setStalePrompt(false);
+    setResult(null); setAttempted(false); setStalePrompt(false); setConflict(null);
   }, [customer.id]);
   useEffect(() => {
     if (!showSend || !customer.id || result) { if (!customer.id) setConflict(null); return; }
@@ -167,24 +104,17 @@ export function CustomerMessages({ customer, data, api, location, busy, run, not
     try { preview = parseTemplate(template.text, parameters); } catch (e) { templateError = e.message; }
   }
   const messages = history?.messages || [];
+  const redirecting = conflict?.action === "assign" && conflict.ticket;
+  const checkingWindow = showSend && !!customer.id && !result && conflict === null;
+  if (showSend && (checkingWindow || configLoading)) return <LoadingSkeleton compact />;
   return <div className="cm-workspace">
     <section hidden={!sendOnly && pane !== "messages"} aria-label="Enviar mensagem">
-      <h2>Enviar mensagem ativa</h2>
+      {sendOnly && <h2>Enviar mensagem ativa</h2>}
       {sendOnly && <CustomerSummary customer={customer} />}
-      {conflict?.action === "assign" && conflict.ticket && <Notice>
-        <p>Já existe o ticket #{conflict.ticket.id} dentro da janela de 24h. Atribua a conversa a você em vez de enviar um template.</p>
-        <div className="cm-conflict-actions">
-          <Button isPrimary disabled={busy} onClick={() => run(async () => {
-            const assigned = await api.assignToCurrentUser(conflict.ticket.id);
-            setConflict({ action: "send" });
-            setResult({ ticketId: assigned.ticketId, assigned: true });
-            notice(`Ticket #${assigned.ticketId} atribuído a você.`);
-          })}>Atribuir a mim</Button>
-          <Button isBasic disabled={busy} onClick={() => setConflict({ action: "send" })}>Cancelar</Button>
-        </div>
-      </Notice>}
-      {!data.templates.length ? <div className="cm-empty"><strong>Nenhum template disponível</strong>
-        {onTemplates ? <Button size="small" onClick={onTemplates}>Ver templates</Button> : <p>Só entram aqui as mensagens publicadas no catálogo de envio (aprovadas na Meta; botão Flow entra, outros botões e mídia ainda não). Em Gerenciar templates, clique em Atualizar e recarregue este painel.</p>}
+      {checkingWindow && <LoadingSkeleton label="Verificando se já existe conversa…" />}
+      {redirecting && <OpenWindowNotice ticketId={conflict.ticket.id} currentTicketId={location === "ticket_sidebar" ? data.ticket?.id : undefined} api={api} busy={busy} run={run} />}
+      {redirecting || checkingWindow ? null : !data.templates.length ? <div className="cm-empty"><strong>Nenhum template disponível</strong>
+        <p>Nenhum template publicado está disponível no catálogo de envio.</p>
       </div> : <>
         <Field className="cm-field"><Label>Template</Label><Select value={selected} disabled={busy || attempted} onChange={e => {
           setSelected(e.target.value);
@@ -196,8 +126,8 @@ export function CustomerMessages({ customer, data, api, location, busy, run, not
           <Input value={value} maxLength={1024} disabled={busy || attempted} onChange={e => setParameters(parameters.map((v, index) => index === i ? e.target.value : v))} />
         </Field>)}
         {templateError && <Notice danger>{templateError}</Notice>}
-        {preview && <div className="cm-preview"><span>Prévia da mensagem</span><p>{preview.config.fallback}</p></div>}
-        {configLoading ? <p className="cm-muted" role="status">Verificando conexão…</p> : !config && <Notice>Informe o App ID e o Key ID do Sunshine nas configurações do app para enviar.</Notice>}
+        {preview && <MessagePreview>{preview.config.fallback}</MessagePreview>}
+        {configLoading ? <LoadingSkeleton label="Verificando conexão…" /> : !config && <Notice>Informe o App ID e o Key ID do Sunshine nas configurações do app para enviar.</Notice>}
         {conflict?.action === "stale" && conflict.ticket && stalePrompt && <Notice>
           <p>O ticket #{conflict.ticket.id} está aberto, mas a janela de 24h já passou. Feche e abra um novo ou una o atual no ticket que será criado.</p>
           <div className="cm-conflict-actions">
@@ -234,7 +164,7 @@ export function CustomerMessages({ customer, data, api, location, busy, run, not
               notice(sendNotice(value));
             } finally { setRevision(v => v + 1); }
           });
-        }}>{busy && attempted ? "Enviando…" : customer.id ? "Enviar mensagem" : "Criar contato e enviar"}</Button>}
+        }}><Button.StartIcon>{busy && attempted && <Spinner size="16" />}</Button.StartIcon>{busy && attempted ? "Enviando…" : customer.id ? "Enviar mensagem" : "Criar contato e enviar"}</Button>}
       </>}
       {attempted && !result && <p className="cm-muted">Confira esta tentativa {sendOnly ? "no ticket" : "na aba Histórico"} antes de enviar novamente.</p>}
       {result && <div className="cm-result"><Button size="small" isBasic onClick={() => run(() => api.openTicket(result.ticketId))}>Abrir ticket #{result.ticketId}</Button>
@@ -243,22 +173,22 @@ export function CustomerMessages({ customer, data, api, location, busy, run, not
           setResult({ ...result, ticketId: merged.ticketId || result.ticketId, merge: merged });
           notice(merged.merged ? `Tickets unidos no #${merged.ticketId}.` : "Não havia tickets para unir.");
         })}>Unir ao ticket #{result.merge.target.id}</Button>}
-        {result.state === "accepted" && <ReadReceipt ticketId={result.ticketId} api={api} />}
         {result.warning && <p role="status">{result.warning}</p>}</div>}
-      {!sendOnly && <SessionComposer customer={customer} ticketId={data.ticket?.id} api={api} busy={busy} run={run} notice={notice} />}
+      {showSend && children}
     </section>
     <section hidden={!showHistory} aria-label="Histórico do contato">
       <div className="section-title"><h2>Histórico</h2><Button size="small" isBasic disabled={busy || historyLoading} onClick={() => setRevision(v => v + 1)}>Atualizar</Button></div>
       {error && <Notice danger>{error}</Notice>}
-      {historyLoading && <p role="status" className="cm-muted">Carregando histórico…</p>}
+      {historyLoading && <LoadingSkeleton label="Carregando histórico…" />}
       {!historyLoading && !error && history?.failures.length > 0 && <Notice>Histórico parcial: {history.failures.length} {history.failures.length === 1 ? "ticket não pôde ser consultado" : "tickets não puderam ser consultados"}.</Notice>}
       {!historyLoading && !error && history && <>
         {!messages.length && <div className="cm-empty"><strong>Ainda não há envios</strong></div>}
         {!!messages.length && <ul className="cm-sends">{messages.map(m => <li key={`${m.ticketId}:${m.id}`} className="card">
           <div className="cm-history-meta">
             <time dateTime={m.created_at}>{new Date(m.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</time>
-            <span role="status">{m.status || "Sem confirmação de leitura"}</span>
+            <StatusTag label={m.status || "Sem confirmação de leitura"} />
           </div>
+          {m.templateName && <strong>Template: {m.templateName}</strong>}
           <MessageBody body={m.preview || "Mensagem ativa"} />
           {m.event && <p className="cm-muted">{m.event}</p>}
         </li>)}</ul>}

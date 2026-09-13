@@ -1,4 +1,4 @@
-import { RECORD_PREFIX, parseTemplate, destinationPhone } from "../src/outbound.js";
+import { RECORD_PREFIX, parseTemplate, destinationPhone, parseRecordComment } from "../src/outbound.js";
 import { safeId, macroTemplate } from "../src/domain.js";
 import { readWhatsAppIdentity, notificationDestination, messagingIds } from "../src/identity.js";
 
@@ -14,7 +14,8 @@ export async function sendRecordedTicket(ticketId, { api, sunshine, scope, claim
     .map(t => t.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'"))
     .find(t => t.startsWith(RECORD_PREFIX)) ?? comment?.plain_body ?? comment?.body;
   if (comment?.public !== false || !text?.startsWith(RECORD_PREFIX)) throw new Error("Registro de envio ausente.");
-  const record = JSON.parse(text.slice(RECORD_PREFIX.length));
+  const record = parseRecordComment(text);
+  if (!record) throw new Error("Registro de envio ilegível.");
   if (![1, 2].includes(record.version) || (record.version === 1 && (record.consent !== true || record.approved !== true)) || String(ticket.requester_id) !== String(record.userId)) throw new Error("Registro de envio inconsistente.");
   const { audit } = await api.request(`/api/v2/tickets/${id}/audits/${safeId(comment.audit_id)}.json`);
   if (!allowedAgentIds.includes(String(audit?.author_id))) throw new Error("Agente não autorizado no serviço de envio.");

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { zendesk } from "../src/zendesk.js";
 import { shorthand } from "../src/domain.js";
-import { RECORD_PREFIX, parseTemplate, destinationPhone, formatPhoneInput, formatPhone, looksLikePhone } from "../src/outbound.js";
+import { RECORD_PREFIX, parseRecordComment, parseTemplate, destinationPhone, formatPhoneInput, formatPhone, looksLikePhone } from "../src/outbound.js";
 
 test("DDI formatting preserves Brazilian aliases and supports international search", async () => {
   assert.equal(formatPhoneInput("11987654321").value, "(11) 98765-4321");
@@ -58,6 +58,7 @@ test("history lists one send per recorded ticket and ignores merge notes", async
   const result = await api.customerHistory(11);
   assert.deepEqual(result.messages.map(m => m.ticketId), [8]);
   assert.equal(result.messages[0].preview, "Olá");
+  assert.ok(result.messages[0].templateName);
   assert.deepEqual(result.failures, [3]);
   assert.ok(result.messages[0].status.includes("Sem confirmação"));
 });
@@ -91,7 +92,7 @@ test("active send records a private ticket before dispatch and disables mutation
   assert.equal(writes[0].url, "/api/v2/tickets.json");
   assert.equal(JSON.parse(writes[0].data).ticket.comment.public, false);
   assert.equal(JSON.parse(writes[0].data).ticket.assignee_id, 42);
-  const instruction = JSON.parse(JSON.parse(writes[0].data).ticket.comment.body.slice(RECORD_PREFIX.length));
+  const instruction = parseRecordComment(JSON.parse(writes[0].data).ticket.comment.body);
   assert.equal(instruction.version, 2);
   assert.equal("consent" in instruction, false);
   assert.equal("approved" in instruction, false);
@@ -206,7 +207,7 @@ test("top bar creates a customer only after checking aliases, then records and s
       await send();
       assert.deepEqual(writes.map(w => w.url), ["/api/v2/users.json", "/api/v2/tickets.json", "https://send.example.test/send"]);
       assert.equal(JSON.parse(writes[0].data).user.phone, "+5511987654321");
-      const record = JSON.parse(JSON.parse(writes[1].data).ticket.comment.body.slice(RECORD_PREFIX.length));
+      const record = parseRecordComment(JSON.parse(writes[1].data).ticket.comment.body);
       assert.equal(record.phone, "+5511987654321");
       assert.ok(writes.every(w => w.autoRetry === false));
     }

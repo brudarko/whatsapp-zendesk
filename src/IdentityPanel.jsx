@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Field, Label, Select } from "@zendeskgarden/react-forms";
 import { Button } from "@zendeskgarden/react-buttons";
-import { Notice, Disclosure } from "./GardenUI.jsx";
+import { Notice, Disclosure, LoadingSkeleton } from "./GardenUI.jsx";
 import { messagingIds, resolveWhatsApp, notificationDestination } from "./identity.js";
 
 const scope = { appId: "aaaaaaaaaaaaaaaaaaaaaaaa", portfolioId: "portfolio-demonstracao", integrationId: "bbbbbbbbbbbbbbbbbbbbbbbb" };
@@ -54,7 +54,7 @@ export function IdentityPanel({ requesterId, api, busy, run, notice }) {
     {scenario === "real" ? <>
       {error && <Notice danger>{error}</Notice>}
       {!requesterId && <p>Abra um ticket ou perfil em Customers para consultar o contato. Os exemplos acima funcionam sem WABA.</p>}
-      {requesterId && loading && <p role="status">Consultando identidades…</p>}
+      {requesterId && loading && <LoadingSkeleton compact label="Consultando identidades…" />}
       {contact && <div className="card">
         <h3>{contact.user.name || "Contato"}</h3>
         <p>{contact.user.phone || "Telefone não disponibilizado"}</p>

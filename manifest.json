@@ -2,7 +2,7 @@
   "name": "WhatsApp Management",
   "author": {
     "name": "Bruno Gabriel",
-    "email": "brudarko@gmail.com"
+    "email": "bruno.gabriel@portta.com.br"
   },
   "defaultLocale": "pt-BR",
   "private": true,
@@ -16,10 +16,6 @@
         "autoLoad": true,
         "flexible": true
       },
-      "ticket_editor": {
-        "url": "assets/iframe.html",
-        "flexible": true
-      },
       "user_sidebar": {
         "url": "assets/iframe.html",
         "autoLoad": true
@@ -27,6 +23,9 @@
       "nav_bar": {
         "url": "assets/iframe.html",
         "flexible": true
+      },
+      "modal": {
+        "url": "assets/iframe.html"
       }
     }
   },
@@ -34,7 +33,6 @@
   "frameworkVersion": "2.0",
   "domainWhitelist": [
     "apps.portta.com.br",
-    "{{setting.outbound_service_host}}",
     "*.zendesk.com"
   ],
   "parameters": [
@@ -75,20 +73,6 @@
       "name": "auto_merge_tickets",
       "type": "checkbox",
       "default": false,
-      "required": false
-    },
-    {
-      "name": "outbound_service_host",
-      "type": "text",
-      "required": false
-    },
-    {
-      "name": "outbound_service_token",
-      "type": "text",
-      "secure": true,
-      "scopes": [
-        "header"
-      ],
       "required": false
     }
   ]

@@ -1,7 +1,8 @@
 import React from 'react';
 import { createGlobalStyle } from 'styled-components';
 import { getColor } from '@zendeskgarden/react-theming';
-import { Alert } from '@zendeskgarden/react-notifications';
+import { Alert, Title } from '@zendeskgarden/react-notifications';
+import { Skeleton } from '@zendeskgarden/react-loaders';
 import { Accordion } from '@zendeskgarden/react-accordions';
 
 // Layout CSS shares Garden's semantic tokens; components retain their own styles.
@@ -24,6 +25,8 @@ export const AppStyles = createGlobalStyle`
     --warning-bg: ${({theme}) => getColor({theme, variable:'background.warning'})};
     --warning-border: ${({theme}) => getColor({theme, variable:'border.warning'})};
   }
+  html { color-scheme: ${({theme}) => theme.colors.base}; height: 100%; }
+  body, #root { min-height: 100%; }
   body { font-family: ${({theme}) => theme.fonts.system}; font-size: ${({theme}) => theme.fontSizes.md}; }
 `;
 
@@ -39,8 +42,15 @@ export function Disclosure({title, children, level=3, isCompact=false, isBare=fa
   </Accordion>;
 }
 
-export function Notice({children, danger=false, type}) {
+export function Notice({children, danger=false, type, title}) {
   return <Alert type={type || (danger ? 'error' : 'info')} role={danger ? 'alert' : 'status'} className="app-notice">
+    {title && <Title>{title}</Title>}
     <Alert.Paragraph as="div">{children}</Alert.Paragraph>
   </Alert>;
+}
+
+export function LoadingSkeleton({ label = "Carregando dados…", compact = false }) {
+  return <div role="status" aria-label={label} aria-busy="true" className={`loading-skeleton${compact ? " loading-skeleton-compact" : ""}`}>
+    <div aria-hidden="true"><Skeleton style={{ width: compact ? '60%' : '45%', height: compact ? 12 : 16 }} /><Skeleton style={{ height: compact ? 24 : 40, marginTop: compact ? 10 : 16 }} /><Skeleton style={{ height: compact ? 40 : 72, marginTop: compact ? 10 : 16 }} /></div>
+  </div>;
 }

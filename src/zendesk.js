@@ -1,4 +1,4 @@
-import { RECORD_PREFIX, parseTemplate, sendRecord, previewSendRecord, destinationPhone } from "./outbound.js";
+import { RECORD_PREFIX, parseTemplate, sendRecord, previewSendRecord, destinationPhone, recordCommentBody, parseRecordComment } from "./outbound.js";
 import { macroTemplate, catalogMacro, safeId, brazilianPhoneCandidates } from "./domain.js";
 import { sendCatalogActions } from "./metaTemplate.js";
 import { contactPhones, mergeReview, contactFingerprint, automaticMergeReason, resolveTicketMerge, isRecordTicket, isConversationTicket, pickMergeTarget } from "./merge.js";
@@ -69,7 +69,10 @@ export function zendesk(client) {
   const api = {
     contact,
     request,
-    openTicket: id => client.invoke("routeTo", "ticket", Number(safeId(id))),
+    async openTicket(id) {
+      await client.invoke("routeTo", "ticket", Number(safeId(id)));
+      try { await client.invoke("popover", "hide"); } catch { /* só o top_bar tem popover */ }
+    },
     // Fusão automática é irreversível: só roda se o administrador ligou a configuração.
     async autoMergeEnabled() {
       const { settings = {} } = await client.metadata();
@@ -143,7 +146,13 @@ export function zendesk(client) {
         const values = await client.get(["ticket", "ticket.conversation"]);
         ticket = values.ticket;
         conversation = values["ticket.conversation"] ?? [];
-        if (!customer && ticket?.requester?.id) customer = (await contact(ticket.requester.id)).user;
+        const requesterId = ticket?.requester?.id || ticket?.requester_id;
+        // Um perfil inacessível não pode apagar a tela: o histórico de envios precisa
+        // abrir mesmo quando o ticket não é do canal WhatsApp ou o contato falha.
+        if (!customer && requesterId) {
+          try { customer = (await contact(requesterId)).user; }
+          catch { customer = { id: requesterId }; }
+        }
       }
       return {
         currentUser,
@@ -156,7 +165,7 @@ export function zendesk(client) {
     },
     async assertContactContext(expectedId, location) {
       // The top bar has an explicitly selected recipient, independent of the active ticket.
-      if (location === "top_bar") return;
+      if (["top_bar", "modal", "nav_bar"].includes(location)) return;
       const key = location === "user_sidebar" ? "user.id" : "ticket.requester.id";
       const current = await client.get(key);
       if (String(current[key]) !== String(expectedId)) throw new Error("O contato mudou. Atualize o app antes de continuar.");
@@ -291,7 +300,7 @@ export function zendesk(client) {
       parseTemplate(fresh.text, input.parameters);
       let userId = input.userId;
       if (input.newCustomer) {
-        if (location !== "top_bar") throw new Error("Cadastre o contato pelo menu superior.");
+        if (!["top_bar", "modal", "nav_bar"].includes(location)) throw new Error("Cadastre o contato pelo menu superior.");
         const { name, phone: value } = input.newCustomer;
         const phone = destinationPhone(value);
         if (typeof name !== "string" || !name.trim() || name.trim().length > 255) throw new Error("Informe o nome do contato (até 255 caracteres).");
@@ -311,20 +320,21 @@ export function zendesk(client) {
       if (profile.user.role !== "end-user" || profile.user.suspended) throw new Error("O contato não está disponível para envio.");
       const identity = await api.whatsappIdentity(record.userId).catch(() => null);
       if (identity?.state === "blocked") throw new Error(identity.reason);
-      if (location === "top_bar" && profile.user.phone) {
+      if ((["top_bar", "modal", "nav_bar"].includes(location)) && profile.user.phone) {
         try { record.phone = destinationPhone(profile.user.phone); } catch { /* A linked BSUID can still resolve a contact with an unusable phone. */ }
       }
       record.templateText = fresh.text;
       await api.assertContactContext(record.userId, location);
-      let assigneeId = null;
-      try { assigneeId = await api.currentAgentId(); } catch { /* Ticket is assigned after send when the agent id is available. */ }
+      let agent = null;
+      try { agent = (await client.get("currentUser")).currentUser; } catch { /* Ticket is assigned after send when the agent id is available. */ }
+      const assigneeId = agent && Number(agent.id) ? Number(safeId(agent.id)) : null;
       let created;
       try {
         created = await request("/api/v2/tickets.json", "POST", { ticket: {
           requester_id: Number(record.userId), subject: `WhatsApp ativo · ${fresh.label}`,
           tags: ["whatsapp_active_message"],
           ...(assigneeId ? { assignee_id: assigneeId } : {}),
-          comment: { public: false, body: RECORD_PREFIX + JSON.stringify(record) },
+          comment: { public: false, body: recordCommentBody(record, { agentName: agent?.name, templateLabel: fresh.label }) },
         } });
       } catch { throw new Error("Criação do ticket não confirmada. Confira o histórico antes de tentar novamente; nenhuma chamada de envio foi feita pelo app."); }
       const ticketId = safeId(created.ticket?.id);
@@ -504,13 +514,20 @@ export function zendesk(client) {
         if (!isRecordTicket(ticket) || isConversationTicket(ticket)) continue;
         try {
           const comments = await pages(`/api/v2/tickets/${safeId(ticket.id)}/comments.json`, "comments");
-          const send = comments.find(comment => (comment.plain_body ?? comment.body ?? "").startsWith(RECORD_PREFIX));
+          const send = comments.find(comment => parseRecordComment(comment.plain_body ?? comment.body ?? ""));
           if (!send) continue;
-          let record;
-          try { record = JSON.parse((send.plain_body ?? send.body).slice(RECORD_PREFIX.length)); }
-          catch { continue; }
+          const record = parseRecordComment(send.plain_body ?? send.body);
           if (![1, 2].includes(record?.version)) continue;
+          let templateName = "";
+          try { templateName = parseTemplate(record.templateText, record.parameters).config.name; } catch {}
+          if (!templateName && record.macroId) {
+            try {
+              const { macro } = await request(`/api/v2/macros/${safeId(record.macroId)}.json`);
+              templateName = String(macro?.title || "").replace(/^WhatsApp::/, "");
+            } catch { /* older/deleted macros have no recoverable display name */ }
+          }
           messages.push({
+            templateName,
             id: send.id, ticketId: ticket.id, created_at: send.created_at, subject: ticket.subject,
             preview: previewSendRecord(record), record: true, status: "Sem confirmação de leitura",
           });
@@ -645,6 +662,16 @@ export function zendesk(client) {
         pages("/api/v2/macros.json?active=false", "macros"),
       ]);
       return [...active, ...inactive].map(catalogMacro).filter(Boolean);
+    },
+    async updateCatalogPresentation({ id, label, groupIds }) {
+      const { currentUser } = await client.get("currentUser");
+      if (currentUser.role !== "admin") throw new Error("Somente administradores podem editar o catálogo.");
+      if (typeof label !== "string" || !label.trim() || label.trim().length > 80) throw new Error("Informe um nome de até 80 caracteres.");
+      const ids = groupIds.map(id => Number(safeId(id)));
+      return request(`/api/v2/macros/${safeId(id)}.json`, "PUT", { macro: {
+        title: `WhatsApp::${label.trim()}`,
+        restriction: ids.length ? { type: "Group", ids } : null,
+      } });
     },
     async syncSendCatalog(items) {
       const entries = await api.catalogEntries();

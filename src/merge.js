@@ -87,6 +87,7 @@ export function pickMergeTarget(tickets) {
 
 export function pickMergeSources(tickets, targetId) {
   return tickets.filter((ticket) => isOpenTicket(ticket) && isRecordTicket(ticket)
+    && !(ticket.tags ?? []).includes("closed_by_merge")
     && !isConversationTicket(ticket) && String(ticket.id) !== String(targetId));
 }
 

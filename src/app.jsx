@@ -1,17 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { ThemeProvider } from "@zendeskgarden/react-theming";
+import { ThemeProvider, DEFAULT_THEME } from "@zendeskgarden/react-theming";
 import { Button } from "@zendeskgarden/react-buttons";
-import { Field, Label, Input, Textarea, Select, Checkbox } from "@zendeskgarden/react-forms";
+import { Field, Label, Checkbox } from "@zendeskgarden/react-forms";
 import { Tabs } from "@zendeskgarden/react-tabs";
-import { AppStyles, Notice, Disclosure } from "./GardenUI.jsx";
-import { parseTemplate } from "./outbound.js";
+import { SM } from "@zendeskgarden/react-typography";
+import { AppStyles, Notice, Disclosure, LoadingSkeleton } from "./GardenUI.jsx";
+import { SectionLabel, openBulkSend } from "./AppChrome.jsx";
 import { zendesk } from "./zendesk.js";
-import { IdentityPanel } from "./IdentityPanel.jsx";
-import { CustomerMessages, CustomerSummary, LocalConnection } from "./CustomerMessages.jsx";
-import { MetaTemplates } from "./MetaTemplates.jsx";
+import { CustomerMessages, CustomerSummary } from "./CustomerMessages.jsx";
 import { WindowStatus } from "./WindowStatus.jsx";
 import { TopBarMessages } from "./TopBarMessages.jsx";
+import { ServiceStatus } from "./ServiceStatus.jsx";
+import { BulkSend } from "./BulkSend.jsx";
 import "./style.css";
 
 const client = window.ZAFClient?.init(),
@@ -23,66 +24,19 @@ const empty = {
   ticket: null,
   conversation: [],
 };
-function TextField({ label, value, onChange, multiline, ...props }) {
-  const Control = multiline ? Textarea : Input;
-  return (
-    <Field className="app-field">
-      <Label>{label}</Label>
-      <Control
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        {...props}
-      />
-    </Field>
-  );
-}
-
-// Estado das duas conexões: o canal WhatsApp (credencial da Conversations API
-// informada na instalação) e o serviço de envio (opcional, para disparo validado).
-function ServiceStatus({ api }) {
-  const [channel, setChannel] = useState(undefined), [service, setService] = useState(undefined);
-  const [issues, setIssues] = useState([]);
-  useEffect(() => {
-    let alive = true;
-    api.sunshineScope()
-      .then(value => { if (alive) setChannel(value ? { integrationId: value.scope.integrationId } : null); })
-      .catch(e => { if (alive) setChannel({ error: e.message }); });
-    api.sunshineSettingsIssues().then(list => { if (alive) setIssues(list); }).catch(() => {});
-    api.outboundConfig().then(value => { if (alive) setService(value); }).catch(() => { if (alive) setService(null); });
-    return () => { alive = false; };
-  }, [api]);
-  return <>
-    {channel === undefined ? <p role="status" className="cm-muted">Verificando o canal WhatsApp…</p>
-      : channel?.integrationId ? <Notice type="success">
-          <strong>Canal WhatsApp conectado</strong>
-          <p>Integração {channel.integrationId}</p>
-        </Notice>
-      : channel?.error ? <Notice danger><strong>Não foi possível ler o canal WhatsApp</strong><p>{channel.error}</p></Notice>
-      : <Notice>
-          <strong>Credencial da Conversations API ausente</strong>
-          <p>Preencha App ID, Key ID e Secret nas configurações do app, em Admin Center · Apps e integrações. A chave é criada em APIs · Conversations API.</p>
-          {!!issues.length && <ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
-        </Notice>}
-    {service === undefined ? null
-      : service?.host ? <Notice type="success"><strong>Serviço de envio conectado</strong><p>{service.host}</p></Notice>
-      : service?.localToken ? <Notice type="success"><strong>Serviço local conectado</strong><p>Vale só neste ambiente de desenvolvimento.</p></Notice>
-      : <Notice>
-          <strong>Envio ativo sem serviço</strong>
-          <p>Templates, histórico, janela de 24h e leitura funcionam pela credencial acima. O disparo de mensagem ativa precisa do servidor de envio, configurado no mesmo formulário.</p>
-        </Notice>}
-  </>;
-}
-
 function App() {
   const [data, setData] = useState(empty),
     [location, setLocation] = useState("ticket_sidebar"),
-    [view, setView] = useState("templates");
+    [view, setView] = useState("messages"),
+    [scheme, setScheme] = useState("light");
+  const theme = useMemo(() => ({ ...DEFAULT_THEME, colors: { ...DEFAULT_THEME.colors, base: scheme === "dark" ? "dark" : "light" } }), [scheme]);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [connected, setConnected] = useState(false),
     [loading, setLoading] = useState(true),
     [now, setNow] = useState(Date.now());
+  const [credentialIssues, setCredentialIssues] = useState(null);
   const [autoBusy, setAutoBusy] = useState(false);
   const [ticketMerge, setTicketMerge] = useState(null);
   const autoChecked = useRef(new Set()), autoTicket = useRef(""), autoMerge = useRef(false), autoRunning = useRef(false);
@@ -91,6 +45,17 @@ function App() {
     version = useRef(0);
   async function refresh(loc = location) {
     const id = ++version.current;
+    const issues = await api.sunshineSettingsIssues();
+    if (!issues.length) {
+      try {
+        if (!await api.sunshineScope()) issues.push("Configure as credenciais do Sunshine.");
+      } catch {
+        issues.push("Não foi possível validar as credenciais. Confira App ID, Key ID e Secret e recarregue o app.");
+      }
+    }
+    if (id !== version.current) return;
+    setCredentialIssues(issues);
+    if (issues.length) return;
     const values = await api.load(loc);
     if (id !== version.current) return;
     setData(values);
@@ -200,14 +165,15 @@ function App() {
         setLocation(context.location);
         setConnected(true);
         autoMerge.current = await api.autoMergeEnabled().catch(() => false);
-        if (["user_sidebar", "top_bar"].includes(context.location)) setView("messages");
+        if (["user_sidebar", "top_bar", "ticket_sidebar"].includes(context.location)) setView("messages");
+        const schemeValue = await client.get("colorScheme").catch(() => ({}));
+        if (alive) setScheme(schemeValue.colorScheme === "dark" ? "dark" : "light");
         await client.invoke("resize", {
           width: context.location === "top_bar" ? "400px" : context.location === "ticket_editor" ? "500px" : "100%",
-          height: context.location === "top_bar" ? "420px" : context.location === "ticket_editor" ? "320px" : "640px",
+          height: context.location === "top_bar" ? "420px" : context.location === "ticket_editor" ? "320px" : context.location === "modal" ? "100%" : "640px",
         });
         const values = await refresh(context.location);
-        // O menu lateral não tem catálogo: administrador cai em Gerenciar templates.
-        if (alive && context.location === "nav_bar") setView("meta");
+        if (alive && context.location === "nav_bar") setView("setup");
         if (alive) setError("");
       } catch (e) {
         if (alive)
@@ -227,29 +193,56 @@ function App() {
     const changed = () => {
       refresh().catch((e) => setError(e.message || "Falha ao atualizar."));
     };
-    const events = ["top_bar", "nav_bar"].includes(location) ? ["pane.activated"] : location === "user_sidebar" ? ["app.activated", "user.name.changed", "user.email.changed"] : [
+    const applyScheme = value => setScheme((value?.colorScheme ?? value) === "dark" ? "dark" : "light");
+    const events = ["top_bar", "nav_bar", "modal"].includes(location) ? ["pane.activated"] : location === "user_sidebar" ? ["app.activated", "user.name.changed", "user.email.changed"] : [
       "ticket.requester.id.changed",
       "ticket.assignee.group.id.changed",
       "ticket.conversation.changed",
       "app.activated",
     ];
-    if (connected) events.forEach((event) => client.on(event, changed));
+    if (connected) {
+      events.forEach((event) => client.on(event, changed));
+      client.on("colorScheme.changed", applyScheme);
+    }
     return () => {
       clearInterval(timer);
-      if (connected) events.forEach((event) => client.off(event, changed));
+      if (connected) {
+        events.forEach((event) => client.off(event, changed));
+        client.off("colorScheme.changed", applyScheme);
+      }
     };
   }, [connected, location]);
-  return (
-    <ThemeProvider>
+  const openBulk = () => run(() => openBulkSend(client));
+  const shell = location === "top_bar" ? "top-bar" : location === "ticket_editor" ? "editor" : location === "nav_bar" ? "nav-page" : location === "user_sidebar" ? "customer-sidebar" : location === "modal" ? "modal-page" : "ticket-sidebar";
+  if (credentialIssues === null || credentialIssues.length) return (
+    <ThemeProvider theme={theme}>
       <AppStyles />
-      <main className={location === "top_bar" ? "top-bar" : location === "ticket_editor" ? "editor" : location === "nav_bar" ? "nav-page" : location === "user_sidebar" ? "customer-sidebar" : ""}>
+      <main className={`${shell} credential-page`}>
+        {credentialIssues?.length ? <Notice title="Configure as credenciais do Sunshine">
+          <p>Preencha App ID, Key ID e Secret nas configurações do app, em Admin Center · Apps e integrações.</p>
+          <ul>{credentialIssues.map(issue => <li key={issue}>{issue}</li>)}</ul>
+        </Notice> : error ? <Notice danger title="Não foi possível verificar as credenciais">{error}</Notice>
+          : <LoadingSkeleton label="Verificando as credenciais do Sunshine…" />}
+      </main>
+    </ThemeProvider>
+  );
+  if (["modal", "nav_bar"].includes(location)) return (
+    <ThemeProvider theme={theme}>
+      <AppStyles />
+      {error && <Notice danger>{error}</Notice>}
+      {loading ? <LoadingSkeleton /> : <BulkSend location={location} data={data} api={api} busy={busy} run={run} notice={setNotice} onClose={location === "modal" ? () => client.invoke("destroy").catch(() => {}) : undefined} />}
+    </ThemeProvider>
+  );
+  return (
+    <ThemeProvider theme={theme}>
+      <AppStyles />
+      <main className={shell}>
         <Tabs selectedItem={view} onChange={id => { setView(id); setError(""); setNotice(""); }}>
         {location !== "top_bar" && <div className="app-tab-scroll"><Tabs.TabList aria-label="Áreas do aplicativo">
           {[
             ...(["user_sidebar", "ticket_sidebar"].includes(location) ? [["messages", "Enviar"], ["history", "Histórico"]] : []),
-            ...(["ticket_sidebar", "ticket_editor"].includes(location) ? [["templates", "Templates"]] : []),
-            ...(location === "nav_bar" ? [] : [["contacts", "Duplicados"]]),
-            ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["meta", "Gerenciar templates"], ["setup", "Configurações"]] : []),
+            ...(["nav_bar", "ticket_editor"].includes(location) ? [] : [["contacts", "Fundir clientes"]]),
+            ...(location === "nav_bar" && data.currentUser?.role === "admin" ? [["setup", "Configurações"]] : []),
           ].map(([id, label]) => <Tabs.Tab key={id} item={id}>{label}</Tabs.Tab>)}
         </Tabs.TabList></div>}
         <Tabs.TabPanel item={view} className="app-panel">
@@ -266,25 +259,21 @@ function App() {
         {location === "nav_bar" && data.currentUser && data.currentUser.role !== "admin" &&
           <Notice>Esta página é para administradores. Use o app no ticket ou no perfil do contato.</Notice>}
         {loading ? (
-          <p role="status">Conectando ao Zendesk…</p>
+          <LoadingSkeleton />
         ) : (
           <>
-            {view === "meta" && location === "nav_bar" && data.currentUser?.role === "admin" && <MetaTemplates api={api} busy={busy} run={run} groups={data.groups} />}
-            {data.customer && <CustomerMessages key={"messages:" + data.customer.id} customer={data.customer} data={data} api={api} location={location} busy={busy} run={run} notice={setNotice} pane={view} onTemplates={["ticket_sidebar", "ticket_editor"].includes(location) ? () => setView("templates") : undefined} />}
+            {!data.customer && !error && <Notice danger title="Não foi possível carregar o contato">
+              <p>Atualize o ticket e verifique se existe um solicitante válido para este atendimento.</p>
+            </Notice>}
+            {data.customer && <CustomerMessages key={"messages:" + data.customer.id} customer={data.customer} data={data} api={api} location={location} busy={busy} run={run} notice={setNotice} pane={view}>
+            {view === "messages" && data.ticket && <WindowStatus key={data.ticket.id} ticketId={data.ticket.id} messages={data.conversation} api={api} now={now} />}
+            {view === "messages" && ["ticket_sidebar", "user_sidebar"].includes(location) && <div className="bulk-cta">
+              <div className="bulk-cta-rule" />
+              <SectionLabel>Vários contatos</SectionLabel>
+              <SM>O envio de mensagens em massa será adicionado em breve.</SM>
+            </div>}
+            </CustomerMessages>}
             {view === "messages" && location === "top_bar" && <TopBarMessages data={data} api={api} busy={busy} run={run} notice={setNotice} />}
-            {view === "templates" && (
-              <>
-                {data.ticket && <WindowStatus key={data.ticket.id} ticketId={data.ticket.id} messages={data.conversation} api={api} now={now} />}
-                <Templates
-                  data={data}
-                  busy={busy || autoBusy}
-                  connected={connected}
-                  run={run}
-                  notice={setNotice}
-                  refresh={refresh}
-                />
-              </>
-            )}
             {view === "contacts" && (
               <Contacts
                 key={"contacts:" + (data.customer?.id ?? data.ticket?.requester?.id)}
@@ -296,15 +285,9 @@ function App() {
                 refresh={refresh}
               />
             )}
-            {view === "setup" && (
+            {view === "setup" && location === "nav_bar" && data.currentUser?.role === "admin" && (
               <section>
-                <h2>Conecte seu atendimento</h2>
                 <ServiceStatus api={api} />
-                <LocalConnection api={api} busy={busy} run={run} />
-                {(typeof LOCAL_SERVICE === "undefined" ? true : LOCAL_SERVICE) && <Disclosure title="Diagnóstico">
-                  <p>{connected ? "Zendesk conectado." : "Aguardando conexão com o Zendesk."}</p>
-                  <IdentityPanel requesterId={data.customer?.id ?? data.ticket?.requester?.id} api={api} busy={busy} run={run} notice={setNotice} />
-                </Disclosure>}
               </section>
             )}
           </>
@@ -314,86 +297,6 @@ function App() {
         </Tabs>
       </main>
     </ThemeProvider>
-  );
-}
-
-function Templates({ data, busy, connected, run, notice, refresh }) {
-  const [query, setQuery] = useState(""),
-    [group, setGroup] = useState(""),
-    [selected, setSelected] = useState(null);
-  const filtered = data.templates.filter(
-    (t) =>
-      t.label
-        .toLocaleLowerCase("pt-BR")
-        .includes(query.toLocaleLowerCase("pt-BR")) &&
-      (!group || !t.groupIds.length || t.groupIds.map(String).includes(group)),
-  );
-  return (
-    <section>
-      <div className="section-title">
-        <h2>Seus templates</h2>
-        <div className="tm-actions"><Button size="small" isBasic disabled={!connected || busy} onClick={() => run(() => refresh())}>Atualizar</Button></div>
-      </div>
-      <TextField
-        label="Buscar template"
-        value={query}
-        onChange={setQuery}
-        placeholder="Nome do template"
-      />
-      <Field className="app-field">
-        <Label>Grupo</Label>
-        <Select value={group} onChange={(e) => setGroup(e.target.value)}>
-          <option value="">Todos os grupos</option>
-          {data.groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </Select>
-      </Field>
-      {!filtered.length && (
-        <div className="empty">
-          <h3>Nenhum template encontrado</h3>
-          <p>
-            {data.templates.length ? "Tente outro nome ou grupo." : "Os templates adicionados ao catálogo aparecerão aqui."}
-          </p>
-        </div>
-      )}
-      {filtered.map((t) => (
-        <button className="template" key={t.id} onClick={() => setSelected(t)}>
-          <strong>{t.label}</strong>
-          {t.useCase && <span className="template-use-case">{t.useCase}</span>}
-          <span>
-            {t.groupIds.length ? "Restrito por grupo" : "Compartilhado"}
-          </span>
-        </button>
-      ))}
-      {selected && (
-        <div className="card">
-          <h3>{selected.label}</h3>
-          {selected.useCase && <p>{selected.useCase}</p>}
-          <div className="cm-preview"><p>{(() => { try { return parseTemplate(selected.text).config.fallback; } catch { return selected.text; } })()}</p></div>
-          <p>
-            {data.customer ? "Envie pela aba Enviar." : "Revise no editor antes de enviar."}
-          </p>
-          {!data.customer && <Button
-            isPrimary
-            isStretched
-            disabled={busy || !connected || !data.ticket?.id}
-            onClick={() =>
-              run(async () => {
-                await api.insertTemplate(selected, data.ticket.id);
-                notice(
-                  "Template inserido no editor. Revise o destinatário antes do envio.",
-                );
-              })
-            }
-          >
-            Inserir no editor
-          </Button>}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -416,7 +319,7 @@ function Contacts({ data, location, run, busy, notice, refresh }) {
     <p>Abra um ticket ou perfil para procurar duplicados.</p></div>;
   return <section className="contacts-workspace">
     {!review && <>
-      <div className="duplicates-intro"><h2>Unir contatos duplicados</h2></div>
+      <div className="duplicates-intro"><p>O Zendesk pode criar mais de um cadastro para o mesmo contato de WhatsApp. Aqui você pode encontrar duplicatas, revisar os dados e reunir os cadastros em um único cliente.</p></div>
       <Button isPrimary disabled={busy} onClick={() => run(async () => {
         resetReview(); setMatches(null); setFailedCriteria([]); setSearching(true);
         try {
